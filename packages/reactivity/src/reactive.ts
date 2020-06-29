@@ -45,7 +45,7 @@ const canObserve = (value: Target): boolean => {
 
 // only unwrap nested ref
 type UnwrapNestedRefs<T> = T extends Ref ? T : UnwrapRef<T>
-
+// 提供给用户的转换数据为响应式的函数
 export function reactive<T extends object>(target: T): UnwrapNestedRefs<T>
 export function reactive(target: object) {
   // if trying to observe a readonly proxy, return the readonly version.
@@ -97,13 +97,14 @@ export function shallowReadonly<T extends object>(
     readonlyCollectionHandlers
   )
 }
-
+// 用proxy创建响应式数据
 function createReactiveObject(
   target: Target,
   isReadonly: boolean,
   baseHandlers: ProxyHandler<any>,
   collectionHandlers: ProxyHandler<any>
 ) {
+  // 用户提供的不是对象，不能创建响应式数据
   if (!isObject(target)) {
     if (__DEV__) {
       console.warn(`value cannot be made reactive: ${String(target)}`)

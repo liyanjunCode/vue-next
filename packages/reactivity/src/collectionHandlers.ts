@@ -32,6 +32,8 @@ function get(
   key: unknown,
   wrap: typeof toReactive | typeof toReadonly | typeof toShallow
 ) {
+    // 这里获取原始对象， 应该是为了防止被转为响应式的对象，再次被侦测，
+  // 因为原始对象和响应式代理对象在weakmap中被作为键值肯定不相等
   target = toRaw(target)
   const rawKey = toRaw(key)
   if (key !== rawKey) {
