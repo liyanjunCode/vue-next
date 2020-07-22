@@ -106,12 +106,12 @@ import { ComponentInternalInstance } from './component'
 declare module '@vue/reactivity' {
   export interface RefUnwrapBailTypes {
     runtimeCoreBailTypes:
-      | VNode
-      | {
-          // directly bailing on ComponentPublicInstance results in recursion
-          // so we use this as a bail hint
-          $: ComponentInternalInstance
-        }
+    | VNode
+    | {
+      // directly bailing on ComponentPublicInstance results in recursion
+      // so we use this as a bail hint
+      $: ComponentInternalInstance
+    }
   }
 }
 
@@ -177,8 +177,9 @@ export {
   ComponentPublicInstance,
   ComponentCustomProperties
 } from './componentProxy'
+
 export {
-  Renderer,
+  Renderer, //  ts接口
   RendererNode,
   RendererElement,
   HydrationRenderer,

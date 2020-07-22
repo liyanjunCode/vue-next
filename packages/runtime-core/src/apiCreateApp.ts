@@ -81,9 +81,9 @@ type PluginInstallFunction = (app: App, ...options: any[]) => any
 export type Plugin =
   | PluginInstallFunction & { install?: PluginInstallFunction }
   | {
-      install: PluginInstallFunction
-    }
-
+    install: PluginInstallFunction
+  }
+// 初始化app的全局组件、指令、混合器、配置等环境对象
 export function createAppContext(): AppContext {
   return {
     app: null as any,
@@ -107,7 +107,7 @@ export type CreateAppFunction<HostElement> = (
   rootComponent: PublicAPIComponent,
   rootProps?: Data | null
 ) => App<HostElement>
-
+// createApp方法最终调用的方法
 export function createAppAPI<HostElement>(
   render: RootRenderFunction,
   hydrate?: RootHydrateFunction
@@ -120,7 +120,7 @@ export function createAppAPI<HostElement>(
 
     const context = createAppContext()
     const installedPlugins = new Set()
-
+    // 用于判断是否挂载过， 只允许挂载一次
     let isMounted = false
 
     const app: App = (context.app = {
@@ -130,11 +130,11 @@ export function createAppAPI<HostElement>(
       _context: context,
 
       version,
-
+      // 获取关于app的配置
       get config() {
         return context.config
       },
-
+      // 不允许用户更改配置
       set config(v) {
         if (__DEV__) {
           warn(
@@ -142,7 +142,7 @@ export function createAppAPI<HostElement>(
           )
         }
       },
-
+      // 全局插件注册，相当于vue2的Vue.use
       use(plugin: Plugin, ...options: any[]) {
         if (installedPlugins.has(plugin)) {
           __DEV__ && warn(`Plugin has already been applied to target app.`)
@@ -155,12 +155,12 @@ export function createAppAPI<HostElement>(
         } else if (__DEV__) {
           warn(
             `A plugin must either be a function or an object with an "install" ` +
-              `function.`
+            `function.`
           )
         }
         return app
       },
-
+      // 全局混入，相当于vue2的Vue.mixin
       mixin(mixin: ComponentOptions) {
         if (__FEATURE_OPTIONS_API__) {
           if (!context.mixins.includes(mixin)) {
@@ -168,7 +168,7 @@ export function createAppAPI<HostElement>(
           } else if (__DEV__) {
             warn(
               'Mixin has already been applied to target app' +
-                (mixin.name ? `: ${mixin.name}` : '')
+              (mixin.name ? `: ${mixin.name}` : '')
             )
           }
         } else if (__DEV__) {
@@ -176,11 +176,12 @@ export function createAppAPI<HostElement>(
         }
         return app
       },
-
+      // 全局组件，相当于vue2的Vue.component
       component(name: string, component?: PublicAPIComponent): any {
         if (__DEV__) {
           validateComponentName(name, context.config)
         }
+        // 不存在第二个参数就是获取组件
         if (!component) {
           return context.components[name]
         }
@@ -190,12 +191,12 @@ export function createAppAPI<HostElement>(
         context.components[name] = component
         return app
       },
-
+      // 全局指令，相当于vue2的Vue.directive
       directive(name: string, directive?: Directive) {
         if (__DEV__) {
           validateDirectiveName(name)
         }
-
+        // 不存在第二个参数就是获取指令方法
         if (!directive) {
           return context.directives[name] as any
         }
@@ -205,8 +206,9 @@ export function createAppAPI<HostElement>(
         context.directives[name] = directive
         return app
       },
-
+      // 挂载页面
       mount(rootContainer: HostElement, isHydrate?: boolean): any {
+        // isMounted 为false时才挂在， 如果为true就已经挂载过了， 只允许挂载一次
         if (!isMounted) {
           const vnode = createVNode(rootComponent as Component, rootProps)
           // store app context on the root VNode.
@@ -227,25 +229,26 @@ export function createAppAPI<HostElement>(
           }
           isMounted = true
           app._container = rootContainer
-          // for devtools and telemetry
-          ;(rootContainer as any).__vue_app__ = app
+            // for devtools and telemetry
+            ; (rootContainer as any).__vue_app__ = app
 
           if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
             devtoolsInitApp(app, version)
           }
-
+          // 返回了响应式数据proxy
           return vnode.component!.proxy
         } else if (__DEV__) {
           warn(
             `App has already been mounted.\n` +
-              `If you want to remount the same app, move your app creation logic ` +
-              `into a factory function and create fresh app instances for each ` +
-              `mount - e.g. \`const createMyApp = () => createApp(App)\``
+            `If you want to remount the same app, move your app creation logic ` +
+            `into a factory function and create fresh app instances for each ` +
+            `mount - e.g. \`const createMyApp = () => createApp(App)\``
           )
         }
       },
-
+      // 卸载页面
       unmount() {
+        // 在挂载状态下才允许卸载， 只需将新的vdom设置为null调用render进行重新渲染即可
         if (isMounted) {
           render(null, app._container)
           devtoolsUnmountApp(app)
@@ -258,7 +261,7 @@ export function createAppAPI<HostElement>(
         if (__DEV__ && key in context.provides) {
           warn(
             `App already provides property with key "${String(key)}". ` +
-              `It will be overwritten with the new value.`
+            `It will be overwritten with the new value.`
           )
         }
         // TypeScript doesn't allow symbols as index type

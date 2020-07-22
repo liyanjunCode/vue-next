@@ -31,7 +31,7 @@ export const EMPTY_OBJ: { readonly [key: string]: any } = __DEV__
   : {}
 export const EMPTY_ARR: [] = []
 
-export const NOOP = () => {}
+export const NOOP = () => { }
 
 /**
  * Always return false.
@@ -84,9 +84,9 @@ export const isPlainObject = (val: unknown): val is object =>
 
 export const isReservedProp = /*#__PURE__*/ makeMap(
   'key,ref,' +
-    'onVnodeBeforeMount,onVnodeMounted,' +
-    'onVnodeBeforeUpdate,onVnodeUpdated,' +
-    'onVnodeBeforeUnmount,onVnodeUnmounted'
+  'onVnodeBeforeMount,onVnodeMounted,' +
+  'onVnodeBeforeUpdate,onVnodeUpdated,' +
+  'onVnodeBeforeUnmount,onVnodeUnmounted'
 )
 
 const cacheStringFunction = <T extends (str: string) => string>(fn: T): T => {

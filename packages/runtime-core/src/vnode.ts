@@ -38,7 +38,7 @@ import { hmrDirtyComponents } from './hmr'
 
 export const Fragment = (Symbol(__DEV__ ? 'Fragment' : undefined) as any) as {
   __isFragment: true
-  new (): {
+  new(): {
     $props: VNodeProps
   }
 }
@@ -109,7 +109,7 @@ export interface VNode<
   HostNode = RendererNode,
   HostElement = RendererElement,
   ExtraProps = { [key: string]: any }
-> {
+  > {
   /**
    * @internal
    */
@@ -253,9 +253,9 @@ export function isSameVNodeType(n1: VNode, n2: VNode): boolean {
 
 let vnodeArgsTransformer:
   | ((
-      args: Parameters<typeof _createVNode>,
-      instance: ComponentInternalInstance | null
-    ) => Parameters<typeof _createVNode>)
+    args: Parameters<typeof _createVNode>,
+    instance: ComponentInternalInstance | null
+  ) => Parameters<typeof _createVNode>)
   | undefined
 
 /**
@@ -267,7 +267,7 @@ let vnodeArgsTransformer:
 export function transformVNodeArgs(transformer?: typeof vnodeArgsTransformer) {
   vnodeArgsTransformer = transformer
 }
-
+// 开发环境创建vnode
 const createVNodeWithArgsTransform = (
   ...args: Parameters<typeof _createVNode>
 ): VNode => {
@@ -290,11 +290,11 @@ const normalizeRef = ({ ref }: VNodeProps): VNode['ref'] => {
       : [currentRenderingInstance!, ref]
     : null) as any
 }
-
+// 创建虚拟dom， 区分发开和生产环境
 export const createVNode = (__DEV__
   ? createVNodeWithArgsTransform
   : _createVNode) as typeof _createVNode
-
+// 生产环境创建vnode
 function _createVNode(
   type: VNodeTypes | ClassComponent | typeof NULL_DYNAMIC_COMPONENT,
   props: (Data & VNodeProps) | null = null,
@@ -303,13 +303,14 @@ function _createVNode(
   dynamicProps: string[] | null = null,
   isBlockNode = false
 ): VNode {
+  // 未传node类型告警
   if (!type || type === NULL_DYNAMIC_COMPONENT) {
     if (__DEV__ && !type) {
       warn(`Invalid vnode type when creating vnode: ${type}.`)
     }
     type = Comment
   }
-
+  // 如果type是一个虚拟dom
   if (isVNode(type)) {
     const cloned = cloneVNode(type, props)
     if (children) {
@@ -360,9 +361,9 @@ function _createVNode(
     type = toRaw(type)
     warn(
       `Vue received a Component which was made a reactive object. This can ` +
-        `lead to unnecessary performance overhead, and should be avoided by ` +
-        `marking the component with \`markRaw\` or using \`shallowRef\` ` +
-        `instead of \`ref\`.`,
+      `lead to unnecessary performance overhead, and should be avoided by ` +
+      `marking the component with \`markRaw\` or using \`shallowRef\` ` +
+      `instead of \`ref\`.`,
       `\nComponent that was made reactive: `,
       type
     )
@@ -478,6 +479,7 @@ export function cloneVNode<T, U>(
 /**
  * @private
  */
+// 创建文本节点
 export function createTextVNode(text: string = ' ', flag: number = 0): VNode {
   return createVNode(Text, null, text, flag)
 }
@@ -485,6 +487,7 @@ export function createTextVNode(text: string = ' ', flag: number = 0): VNode {
 /**
  * @private
  */
+// 创建静态节点
 export function createStaticVNode(
   content: string,
   numberOfNodes: number
@@ -499,6 +502,7 @@ export function createStaticVNode(
 /**
  * @private
  */
+// 创建注释节点
 export function createCommentVNode(
   text: string = '',
   // when used as the v-else branch, the comment node must be created as a
@@ -553,17 +557,17 @@ export function normalizeChildren(vnode: VNode, children: unknown) {
       if (!slotFlag && !(InternalObjectKey in children!)) {
         // if slots are not normalized, attach context instance
         // (compiled / normalized slots already have context)
-        ;(children as RawSlots)._ctx = currentRenderingInstance
+        ; (children as RawSlots)._ctx = currentRenderingInstance
       } else if (slotFlag === SlotFlags.FORWARDED && currentRenderingInstance) {
         // a child component receives forwarded slots from the parent.
         // its slot type is determined by its parent's slot type.
         if (
           currentRenderingInstance.vnode.patchFlag & PatchFlags.DYNAMIC_SLOTS
         ) {
-          ;(children as RawSlots)._ = SlotFlags.DYNAMIC
+          ; (children as RawSlots)._ = SlotFlags.DYNAMIC
           vnode.patchFlag |= PatchFlags.DYNAMIC_SLOTS
         } else {
-          ;(children as RawSlots)._ = SlotFlags.STABLE
+          ; (children as RawSlots)._ = SlotFlags.STABLE
         }
       }
     }
@@ -583,7 +587,7 @@ export function normalizeChildren(vnode: VNode, children: unknown) {
   vnode.children = children as VNodeNormalizedChildren
   vnode.shapeFlag |= type
 }
-
+// 合并attr属性
 export function mergeProps(...args: (Data & VNodeProps)[]) {
   const ret = extend({}, args[0])
   for (let i = 1; i < args.length; i++) {

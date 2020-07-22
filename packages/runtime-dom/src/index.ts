@@ -20,7 +20,7 @@ declare module '@vue/reactivity' {
     runtimeDOMBailTypes: Node | Window
   }
 }
-
+// vue定义的底层渲染方法
 const rendererOptions = extend({ patchProp, forcePatchProp }, nodeOps)
 
 // lazy create the renderer - this makes core renderer logic tree-shakable
@@ -30,6 +30,7 @@ let renderer: Renderer<Element> | HydrationRenderer
 let enabledHydration = false
 
 function ensureRenderer() {
+  // 这里createRenderer可以自定义渲染器的底层机制, 只需自己重写rendererOptions里的方法即可， 但方法名不可变
   return renderer || (renderer = createRenderer<Node, Element>(rendererOptions))
 }
 
@@ -49,33 +50,40 @@ export const render = ((...args) => {
 export const hydrate = ((...args) => {
   ensureHydrationRenderer().hydrate(...args)
 }) as RootHydrateFunction
-
+// vue的真实创建app入口
 export const createApp = ((...args) => {
+  // ensureRenderer方法， 用户可以重新定义
   const app = ensureRenderer().createApp(...args)
 
   if (__DEV__) {
     injectNativeTagCheck(app)
   }
-
+  // 拿出原有的mount方法， 下步进行方法重写
   const { mount } = app
+  // createApp 创建的app 挂载方法, 这里是对mount的重写， 做了操作后， 再调用原有的mount方法， 和vue2中一样
   app.mount = (containerOrSelector: Element | string): any => {
     const container = normalizeContainer(containerOrSelector)
+    // 没传有效的container， 不进行挂载过程
     if (!container) return
     const component = app._component
     if (!isFunction(component) && !component.render && !component.template) {
       component.template = container.innerHTML
     }
     // clear content before mounting
+    // 挂载前，先清空
     container.innerHTML = ''
+    // 这里进行了第一次挂载
     const proxy = mount(container)
+    // 挂载后删除v-cloak属性,v-cloak是开发者为防止大括号闪烁设置属性选择器的样式
     container.removeAttribute('v-cloak')
+    // data-v-app 干嘛的现在不知道
     container.setAttribute('data-v-app', '')
     return proxy
   }
 
   return app
 }) as CreateAppFunction<Element>
-
+// vue ssr的真实创建app入口
 export const createSSRApp = ((...args) => {
   const app = ensureHydrationRenderer().createApp(...args)
 

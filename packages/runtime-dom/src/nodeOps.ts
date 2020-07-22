@@ -57,7 +57,7 @@ export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
   insertStaticContent(content, parent, anchor, isSVG) {
     const temp = isSVG
       ? tempSVGContainer ||
-        (tempSVGContainer = doc.createElementNS(svgNS, 'svg'))
+      (tempSVGContainer = doc.createElementNS(svgNS, 'svg'))
       : tempContainer || (tempContainer = doc.createElement('div'))
     temp.innerHTML = content
     const first = temp.firstChild as Element
