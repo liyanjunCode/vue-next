@@ -56,7 +56,7 @@ export type Data = Record<string, unknown>
 /**
  * For extending allowed non-declared props on components in TSX
  */
-export interface ComponentCustomProps {}
+export interface ComponentCustomProps { }
 
 /**
  * Default allowed non-declared props on ocmponent in TSX
@@ -106,7 +106,7 @@ export interface FunctionalComponent<P = {}, E extends EmitsOptions = {}>
 }
 
 export interface ClassComponent {
-  new (...args: any[]): ComponentPublicInstance<any, any, any, any, any>
+  new(...args: any[]): ComponentPublicInstance<any, any, any, any, any>
   __vccOpts: ComponentOptions
 }
 
@@ -117,14 +117,14 @@ export type Component = ComponentOptions | FunctionalComponent<any>
 export type PublicAPIComponent =
   | Component
   | {
-      new (...args: any[]): CreateComponentPublicInstance<
-        any,
-        any,
-        any,
-        any,
-        any
-      >
-    }
+    new(...args: any[]): CreateComponentPublicInstance<
+      any,
+      any,
+      any,
+      any,
+      any
+    >
+  }
 
 export { ComponentOptions }
 
@@ -348,7 +348,7 @@ export interface ComponentInternalInstance {
 const emptyAppContext = createAppContext()
 
 let uid = 0
-
+// 这个是组件初始化时，一些属性的初始化定义
 export function createComponentInstance(
   vnode: VNode,
   parent: ComponentInternalInstance | null,
@@ -386,6 +386,7 @@ export function createComponentInstance(
     setupContext: null,
 
     // per-instance asset storage (mutable during options resolution)
+    // 这个组件初始化时会集成全局注册的组件和全局指令
     components: Object.create(appContext.components),
     directives: Object.create(appContext.directives),
 
@@ -504,13 +505,16 @@ function setupStatefulComponent(
     exposePropsOnRenderContext(instance)
   }
   // 2. call setup()
+  // 执行setup函数的过程， 这里很重要
   const { setup } = Component
+  // 这个判断应该是兼容vue2的版本， 不存在setup函数， 直接进行模板编译的过程
   if (setup) {
     const setupContext = (instance.setupContext =
       setup.length > 1 ? createSetupContext(instance) : null)
 
     currentInstance = instance
     pauseTracking()
+    // 这里是获取到了setup函数的返回结果
     const setupResult = callWithErrorHandling(
       setup,
       instance,
@@ -533,17 +537,18 @@ function setupStatefulComponent(
       } else if (__DEV__) {
         warn(
           `setup() returned a Promise, but the version of Vue you are using ` +
-            `does not support it yet.`
+          `does not support it yet.`
         )
       }
     } else {
+      // 处理setup函数返回的结果数据
       handleSetupResult(instance, setupResult, isSSR)
     }
   } else {
     finishComponentSetup(instance, isSSR)
   }
 }
-
+// 处理setup函数返回的结果数据
 export function handleSetupResult(
   instance: ComponentInternalInstance,
   setupResult: unknown,
@@ -551,12 +556,13 @@ export function handleSetupResult(
 ) {
   if (isFunction(setupResult)) {
     // setup returned an inline render function
+    // 如果返回的是函数， 说明是渲染函数
     instance.render = setupResult as InternalRenderFunction
   } else if (isObject(setupResult)) {
     if (__DEV__ && isVNode(setupResult)) {
       warn(
         `setup() should not return VNodes directly - ` +
-          `return a render function instead.`
+        `return a render function instead.`
       )
     }
     // setup returned bindings.
@@ -568,7 +574,7 @@ export function handleSetupResult(
   } else if (__DEV__ && setupResult !== undefined) {
     warn(
       `setup() should return an object. Received: ${
-        setupResult === null ? 'null' : typeof setupResult
+      setupResult === null ? 'null' : typeof setupResult
       }`
     )
   }
@@ -589,7 +595,7 @@ let compile: CompileFunction | undefined
 export function registerRuntimeCompiler(_compile: any) {
   compile = _compile
 }
-
+// 完成组件setup函数的执行过程, 进行模板编译
 function finishComponentSetup(
   instance: ComponentInternalInstance,
   isSSR: boolean
@@ -602,6 +608,7 @@ function finishComponentSetup(
       instance.render = Component.render as InternalRenderFunction
     }
   } else if (!instance.render) {
+    // 不存在render函数， 走template的编译过程
     if (compile && Component.template && !Component.render) {
       if (__DEV__) {
         startMeasure(instance, `compile`)
@@ -613,7 +620,7 @@ function finishComponentSetup(
         endMeasure(instance, `compile`)
       }
       // mark the function as runtime compiled
-      ;(Component.render as InternalRenderFunction)._rc = true
+      ; (Component.render as InternalRenderFunction)._rc = true
     }
 
     if (__DEV__ && !Component.render) {
@@ -621,20 +628,20 @@ function finishComponentSetup(
       if (!compile && Component.template) {
         warn(
           `Component provided template option but ` +
-            `runtime compilation is not supported in this build of Vue.` +
-            (__ESM_BUNDLER__
-              ? ` Configure your bundler to alias "vue" to "vue/dist/vue.esm-bundler.js".`
-              : __ESM_BROWSER__
-                ? ` Use "vue.esm-browser.js" instead.`
-                : __GLOBAL__
-                  ? ` Use "vue.global.js" instead.`
-                  : ``) /* should not happen */
+          `runtime compilation is not supported in this build of Vue.` +
+          (__ESM_BUNDLER__
+            ? ` Configure your bundler to alias "vue" to "vue/dist/vue.esm-bundler.js".`
+            : __ESM_BROWSER__
+              ? ` Use "vue.esm-browser.js" instead.`
+              : __GLOBAL__
+                ? ` Use "vue.global.js" instead.`
+                : ``) /* should not happen */
         )
       } else {
         warn(`Component is missing template or render function.`)
       }
     }
-
+    // 将render函数赋值给组件选项存起来
     instance.render = (Component.render || NOOP) as InternalRenderFunction
 
     // for runtime-compiled render functions using `with` blocks, the render
@@ -701,7 +708,7 @@ function createSetupContext(instance: ComponentInternalInstance): SetupContext {
 // stopped when the component unmounts
 export function recordInstanceBoundEffect(effect: ReactiveEffect) {
   if (currentInstance) {
-    ;(currentInstance.effects || (currentInstance.effects = [])).push(effect)
+    ; (currentInstance.effects || (currentInstance.effects = [])).push(effect)
   }
 }
 

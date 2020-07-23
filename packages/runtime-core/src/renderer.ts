@@ -408,6 +408,7 @@ function baseCreateRenderer(
 
   // Note: functions inside this closure should use `const xxx = () => {}`
   // style in order to prevent being inlined by minifiers.
+  // 这里面应该都是vue3对dom diff前的一系列优化措施
   const patch: PatchFn = (
     n1,
     n2,
@@ -1138,7 +1139,7 @@ function baseCreateRenderer(
       updateComponent(n1, n2, optimized)
     }
   }
-
+  // 组件的初次渲染和更新
   const mountComponent: MountComponentFn = (
     initialVNode,
     container,
@@ -1148,6 +1149,7 @@ function baseCreateRenderer(
     isSVG,
     optimized
   ) => {
+    // 做一些组件的初始化变量赋值， 继承父组件一些功能
     const instance: ComponentInternalInstance = (initialVNode.component = createComponentInstance(
       initialVNode,
       parentComponent,
@@ -1194,7 +1196,7 @@ function baseCreateRenderer(
       }
       return
     }
-
+    // 上一步setup函数执行了， 渠道结果了， render函数有了， 在此进行组件挂载
     setupRenderEffect(
       instance,
       initialVNode,
@@ -1256,7 +1258,9 @@ function baseCreateRenderer(
     optimized
   ) => {
     // create reactive effect for rendering
+    // 这个是相当于vue2组件的渲染watcher
     instance.update = effect(function componentEffect() {
+      // 没挂载过， 进行初次挂在
       if (!instance.isMounted) {
         let vnodeHook: VNodeHook | null | undefined
         const { el, props } = initialVNode
@@ -1269,10 +1273,12 @@ function baseCreateRenderer(
           endMeasure(instance, `render`)
         }
         // beforeMount hook
+        // beforeMount钩子函数， 这个我估计是vue2的写法
         if (bm) {
           invokeArrayFns(bm)
         }
         // onVnodeBeforeMount
+        // 渲染water的BeforeMount函数执行
         if ((vnodeHook = props && props.onVnodeBeforeMount)) {
           invokeVNodeHook(vnodeHook, parent, initialVNode)
         }
@@ -1327,7 +1333,8 @@ function baseCreateRenderer(
         }
         instance.isMounted = true
       } else {
-        // updateComponent
+        // 挂在过，只是进行组件的重新比对渲染
+        // updateComponentupdateComponent
         // This is triggered by mutation of component's own state (next: null)
         // OR parent calling processComponent (next: VNode)
         let { next, bu, u, parent, vnode } = instance
