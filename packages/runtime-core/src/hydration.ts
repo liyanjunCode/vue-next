@@ -57,7 +57,7 @@ export function createHydrationFunctions(
     if (__DEV__ && !container.hasChildNodes()) {
       warn(
         `Attempting to hydrate existing markup but container is empty. ` +
-          `Performing full mount instead.`
+        `Performing full mount instead.`
       )
       patch(null, vnode, container)
       return
@@ -103,10 +103,10 @@ export function createHydrationFunctions(
             __DEV__ &&
               warn(
                 `Hydration text mismatch:` +
-                  `\n- Client: ${JSON.stringify((node as Text).data)}` +
-                  `\n- Server: ${JSON.stringify(vnode.children)}`
+                `\n- Client: ${JSON.stringify((node as Text).data)}` +
+                `\n- Server: ${JSON.stringify(vnode.children)}`
               )
-            ;(node as Text).data = vnode.children as string
+              ; (node as Text).data = vnode.children as string
           }
           nextNode = nextSibling(node)
         }
@@ -296,7 +296,7 @@ export function createHydrationFunctions(
           if (__DEV__ && !hasWarned) {
             warn(
               `Hydration children mismatch in <${vnode.type as string}>: ` +
-                `server rendered element contains more child nodes than client vdom.`
+              `server rendered element contains more child nodes than client vdom.`
             )
             hasWarned = true
           }
@@ -311,8 +311,8 @@ export function createHydrationFunctions(
           __DEV__ &&
             warn(
               `Hydration text content mismatch in <${vnode.type as string}>:\n` +
-                `- Client: ${el.textContent}\n` +
-                `- Server: ${vnode.children as string}`
+              `- Client: ${el.textContent}\n` +
+              `- Server: ${vnode.children as string}`
             )
           el.textContent = vnode.children as string
         }
@@ -350,7 +350,7 @@ export function createHydrationFunctions(
         if (__DEV__ && !hasWarned) {
           warn(
             `Hydration children mismatch in <${container.tagName.toLowerCase()}>: ` +
-              `server rendered element contains fewer child nodes than client vdom.`
+            `server rendered element contains fewer child nodes than client vdom.`
           )
           hasWarned = true
         }

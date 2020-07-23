@@ -43,6 +43,7 @@ function compileToFunction(
     template = el ? el.innerHTML : ``
   }
   // compile模板编译方法来自@vue/compiler-dom,传入模板template和第二个参数（处理字符串时的一些钩子函数）extend适用于对象合并
+  // 编译成字符串形式的
   const { code } = compile(
     template,
     extend(
@@ -74,12 +75,14 @@ function compileToFunction(
   // with keys that cannot be mangled, and can be quite heavy size-wise.
   // In the global build we know `Vue` is available globally so we can avoid
   // the wildcard object.
+  // 生成渲染函数
   const render = (__GLOBAL__
     ? new Function(code)()
     : new Function('Vue', code)(runtimeDom)) as RenderFunction
+  // 将编译好的render函数存起来, 并将render函数返回出去
   return (compileCache[key] = render)
 }
-
+// 将编译函数注册到了runtime-core的component文件中使用
 registerRuntimeCompiler(compileToFunction)
 
 export { compileToFunction as compile }

@@ -210,6 +210,7 @@ export function createAppAPI<HostElement>(
       mount(rootContainer: HostElement, isHydrate?: boolean): any {
         // isMounted 为false时才挂在， 如果为true就已经挂载过了， 只允许挂载一次
         if (!isMounted) {
+          // rootComponent webpack处理后的组件，根组件, 这里是创建虚拟dom
           const vnode = createVNode(rootComponent as Component, rootProps)
           // store app context on the root VNode.
           // this will be set on the root instance on initial mount.
@@ -221,10 +222,11 @@ export function createAppAPI<HostElement>(
               render(cloneVNode(vnode), rootContainer)
             }
           }
-
+          // 第一次全局挂载isHydrate肯定不存在，其他场景还不清楚
           if (isHydrate && hydrate) {
             hydrate(vnode as VNode<Node, Element>, rootContainer as any)
           } else {
+            // 第一次渲染挂载页面
             render(vnode, rootContainer)
           }
           isMounted = true

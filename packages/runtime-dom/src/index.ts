@@ -62,6 +62,7 @@ export const createApp = ((...args) => {
   const { mount } = app
   // createApp 创建的app 挂载方法, 这里是对mount的重写， 做了操作后， 再调用原有的mount方法， 和vue2中一样
   app.mount = (containerOrSelector: Element | string): any => {
+    // 获取dom
     const container = normalizeContainer(containerOrSelector)
     // 没传有效的container， 不进行挂载过程
     if (!container) return
@@ -110,7 +111,7 @@ function injectNativeTagCheck(app: App) {
     writable: false
   })
 }
-
+// 如果是字符串说明是选择器， 就获取dom 否则就是真是dom直接返回
 function normalizeContainer(container: Element | string): Element | null {
   if (isString(container)) {
     const res = document.querySelector(container)

@@ -419,6 +419,7 @@ function baseCreateRenderer(
     isSVG = false,
     optimized = false
   ) => {
+    // 这里参数n1是老的虚拟dom， n2是新的虚拟dom
     // patching & not same type, unmount old tree
     if (n1 && !isSameVNodeType(n1, n2)) {
       anchor = getNextHostNode(n1)
@@ -433,9 +434,11 @@ function baseCreateRenderer(
 
     const { type, ref, shapeFlag } = n2
     switch (type) {
+      // 文本节点的处理
       case Text:
         processText(n1, n2, container, anchor)
         break
+      // 注释节点的处理
       case Comment:
         processCommentNode(n1, n2, container, anchor)
         break
@@ -517,20 +520,23 @@ function baseCreateRenderer(
   }
 
   const processText: ProcessTextOrCommentFn = (n1, n2, container, anchor) => {
+    // 老的虚拟dom不存在，
     if (n1 == null) {
+      // 将hostCreateText创建的文本元素插入到父级container下
       hostInsert(
-        (n2.el = hostCreateText(n2.children as string)),
+        (n2.el = hostCreateText(n2.children as string)), // 创建文本节点元素
         container,
         anchor
       )
     } else {
+      // 老的虚拟dom存在，
       const el = (n2.el = n1.el!)
       if (n2.children !== n1.children) {
         hostSetText(el, n2.children as string)
       }
     }
   }
-
+  // 创建注释节点
   const processCommentNode: ProcessTextOrCommentFn = (
     n1,
     n2,
@@ -2118,11 +2124,13 @@ function baseCreateRenderer(
   }
 
   const render: RootRenderFunction = (vnode, container) => {
+    // 第一次挂载渲染肯定存在vnode
     if (vnode == null) {
       if (container._vnode) {
         unmount(container._vnode, null, null, true)
       }
     } else {
+      // container._vnode为老的虚拟dom vnode为新的虚拟dom
       patch(container._vnode || null, vnode, container)
     }
     flushPostFlushCbs()

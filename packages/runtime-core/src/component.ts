@@ -509,6 +509,7 @@ function setupStatefulComponent(
   const { setup } = Component
   // 这个判断应该是兼容vue2的版本， 不存在setup函数， 直接进行模板编译的过程
   if (setup) {
+    // 获取attrs 和插槽slots和emit事件
     const setupContext = (instance.setupContext =
       setup.length > 1 ? createSetupContext(instance) : null)
 
@@ -592,6 +593,7 @@ let compile: CompileFunction | undefined
  * For runtime-dom to register the compiler.
  * Note the exported method uses any to avoid d.ts relying on the compiler types.
  */
+// 这注册了此文件全局的compile编译函数
 export function registerRuntimeCompiler(_compile: any) {
   compile = _compile
 }
@@ -613,6 +615,7 @@ function finishComponentSetup(
       if (__DEV__) {
         startMeasure(instance, `compile`)
       }
+      // 将render函数挂载到Component上供渲染时调用
       Component.render = compile(Component.template, {
         isCustomElement: instance.appContext.config.isCustomElement || NO
       })
@@ -641,7 +644,7 @@ function finishComponentSetup(
         warn(`Component is missing template or render function.`)
       }
     }
-    // 将render函数赋值给组件选项存起来
+    // Component.render函数如果没有赋值为默认的NOOP，兼容
     instance.render = (Component.render || NOOP) as InternalRenderFunction
 
     // for runtime-compiled render functions using `with` blocks, the render
@@ -679,7 +682,7 @@ const attrHandlers: ProxyHandler<Data> = {
     return false
   }
 }
-
+// 返回组件的attrs slots 和事件emit
 function createSetupContext(instance: ComponentInternalInstance): SetupContext {
   if (__DEV__) {
     // We use getters in dev in case libs like test-utils overwrite instance
