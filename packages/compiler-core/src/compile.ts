@@ -32,10 +32,10 @@ export function getBaseTransformPreset(
       transformFor,
       ...(!__BROWSER__ && prefixIdentifiers
         ? [
-            // order is important
-            trackVForSlotScopes,
-            transformExpression
-          ]
+          // order is important
+          trackVForSlotScopes,
+          transformExpression
+        ]
         : __BROWSER__ && __DEV__
           ? [transformExpression]
           : []),
@@ -77,7 +77,7 @@ export function baseCompile(
   if (options.scopeId && !isModuleMode) {
     onError(createCompilerError(ErrorCodes.X_SCOPE_ID_NOT_SUPPORTED))
   }
-
+  //baseParse 解析模板， 生成抽象ast树
   const ast = isString(template) ? baseParse(template, options) : template
   const [nodeTransforms, directiveTransforms] = getBaseTransformPreset(
     prefixIdentifiers
@@ -97,7 +97,7 @@ export function baseCompile(
       )
     })
   )
-
+  // 
   return generate(
     ast,
     extend({}, options, {

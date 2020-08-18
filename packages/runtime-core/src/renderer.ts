@@ -654,7 +654,7 @@ function baseCreateRenderer(
       patchElement(n1, n2, parentComponent, parentSuspense, isSVG, optimized)
     }
   }
-
+  // dom对比， 第一次挂载元素
   const mountElement = (
     vnode: VNode,
     container: RendererElement,
@@ -793,7 +793,7 @@ function baseCreateRenderer(
       )
     }
   }
-
+  // dom对比
   const patchElement = (
     n1: VNode,
     n2: VNode,
@@ -1439,7 +1439,7 @@ function baseCreateRenderer(
     updateProps(instance, nextVNode.props, prevProps, optimized)
     updateSlots(instance, nextVNode.children)
   }
-
+  // 比较元素的children
   const patchChildren: PatchChildrenFn = (
     n1,
     n2,
@@ -1460,6 +1460,7 @@ function baseCreateRenderer(
       if (patchFlag & PatchFlags.KEYED_FRAGMENT) {
         // this could be either fully-keyed or mixed (some keyed some not)
         // presence of patchFlag means children are guaranteed to be arrays
+        // 用于存在key和一半存在key一半无key的情况进行diff
         patchKeyedChildren(
           c1 as VNode[],
           c2 as VNodeArrayChildren,
@@ -1472,6 +1473,7 @@ function baseCreateRenderer(
         )
         return
       } else if (patchFlag & PatchFlags.UNKEYED_FRAGMENT) {
+        // 无key的情况下进行diff
         // unkeyed
         patchUnkeyedChildren(
           c1 as VNode[],
@@ -1547,11 +1549,14 @@ function baseCreateRenderer(
     isSVG: boolean,
     optimized: boolean
   ) => {
+    // 获取新老dom和新老dom 的length
     c1 = c1 || EMPTY_ARR
     c2 = c2 || EMPTY_ARR
     const oldLength = c1.length
     const newLength = c2.length
+    // 获取新老dom的最小length
     const commonLength = Math.min(oldLength, newLength)
+    // 依次遍历新老dom进行patch
     let i
     for (i = 0; i < commonLength; i++) {
       const nextChild = (c2[i] = optimized
@@ -1569,10 +1574,12 @@ function baseCreateRenderer(
       )
     }
     if (oldLength > newLength) {
+      // 如果旧dom的length大于新dom的length，需要移除对比完剩下的元素
       // remove old
       unmountChildren(c1, parentComponent, parentSuspense, true, commonLength)
     } else {
       // mount new
+      // 此处是新dom大于老dom的length， 对比完剩下的元素需要创建挂载
       mountChildren(
         c2,
         container,
@@ -1598,13 +1605,14 @@ function baseCreateRenderer(
     optimized: boolean
   ) => {
     let i = 0
-    const l2 = c2.length
-    let e1 = c1.length - 1 // prev ending index
-    let e2 = l2 - 1 // next ending index
+    const l2 = c2.length  // 新vode的length
+    let e1 = c1.length - 1 // prev ending index  老vnode最后一个节点的索引
+    let e2 = l2 - 1 // next ending index   // 新vnode最后一个节点的索引
 
     // 1. sync from start
     // (a b) c
     // (a b) d e
+    // 从开始位置开始对比， 不同就跳出循环， 相同就patch
     while (i <= e1 && i <= e2) {
       const n1 = c1[i]
       const n2 = (c2[i] = optimized
@@ -1630,6 +1638,7 @@ function baseCreateRenderer(
     // 2. sync from end
     // a (b c)
     // d e (b c)
+    // 从结束位置开始， 发现不同的vnode节点跳出， 相同就patch
     while (i <= e1 && i <= e2) {
       const n1 = c1[e1]
       const n2 = (c2[e2] = optimized
@@ -1660,10 +1669,11 @@ function baseCreateRenderer(
     // (a b)
     // c (a b)
     // i = 0, e1 = -1, e2 = 0
-    if (i > e1) {
-      if (i <= e2) {
+    if (i > e1) { // 老节点遍历完成了 // 此判断下是剩下新的vnode， 需要全部以新添加元素的方式处理
+      if (i <= e2) { //新节点 还未遍历完
         const nextPos = e2 + 1
         const anchor = nextPos < l2 ? (c2[nextPos] as VNode).el : parentAnchor
+        // 创建添加新元素
         while (i <= e2) {
           patch(
             null,
@@ -1688,8 +1698,8 @@ function baseCreateRenderer(
     // a (b c)
     // (b c)
     // i = 0, e1 = 0, e2 = -1
-    else if (i > e2) {
-      while (i <= e1) {
+    else if (i > e2) { // 新的vnode已遍历完成
+      while (i <= e1) { // 老的vnode还有剩余， 进行卸载操作
         unmount(c1[i], parentComponent, parentSuspense, true)
         i++
       }
@@ -1699,12 +1709,15 @@ function baseCreateRenderer(
     // [i ... e1 + 1]: a b [c d e] f g
     // [i ... e2 + 1]: a b [e d c h] f g
     // i = 2, e1 = 4, e2 = 5
+    // 不确定的元素（在进行了1和2两种方法的对比后，中间还有很多vnode元素）
     else {
       const s1 = i // prev starting index
       const s2 = i // next starting index
 
       // 5.1 build key:index map for newChildren
+      // 为新的vnode创建key和index的映射表
       const keyToNewIndexMap: Map<string | number, number> = new Map()
+      // 把新的未处理的vnode的key和index关系存入map表
       for (i = s2; i <= e2; i++) {
         const nextChild = (c2[i] = optimized
           ? cloneIfMounted(c2[i] as VNode)
@@ -1723,51 +1736,61 @@ function baseCreateRenderer(
 
       // 5.2 loop through old children left to be patched and try to patch
       // matching nodes & remove nodes that are no longer present
-      let j
-      let patched = 0
-      const toBePatched = e2 - s2 + 1
-      let moved = false
+      // 翻译注释：循环剩余的旧的vnode，尝试修补或删除不存在的节点
+      let j  //记录新节点的索引
+      let patched = 0    // 已经patch的数量
+      const toBePatched = e2 - s2 + 1  //还没有被patch的新的vnode的数量
+      let moved = false    //记录是否发生过移动
       // used to track whether any node has moved
-      let maxNewIndexSoFar = 0
+      let maxNewIndexSoFar = 0 // 用以跟踪是否有移动节点
       // works as Map<newIndex, oldIndex>
       // Note that oldIndex is offset by +1
       // and oldIndex = 0 is a special value indicating the new node has
       // no corresponding old node.
       // used for determining longest stable subsequence
+
+      // 建立一个toBePatched长的数组， 每一项赋值为0, 用来存放存储新节点索引和老节点索引数组， index是新vnode索引， value是老vnode的索引
       const newIndexToOldIndexMap = new Array(toBePatched)
       for (i = 0; i < toBePatched; i++) newIndexToOldIndexMap[i] = 0
-
-      for (i = s1; i <= e1; i++) {
+      // 
+      for (i = s1; i <= e1; i++) { // 循环剩余的老的vnode
         const prevChild = c1[i]
-        if (patched >= toBePatched) {
+        if (patched >= toBePatched) { // 如果patched过的元素大于新元素的剩下的所有vnode数量， 说明旧的vnode有剩余，卸载剩余的旧的dom
           // all new children have been patched so this can only be a removal
           unmount(prevChild, parentComponent, parentSuspense, true)
           continue
         }
         let newIndex
-        if (prevChild.key != null) {
+        if (prevChild.key != null) { // 旧的vnode存在key
+          // 通过老元素的key查找新元素的index， 因为keyToNewIndexMap是新元素的key和index的映射
           newIndex = keyToNewIndexMap.get(prevChild.key)
         } else {
+          // 老节点不存在key
           // key-less node, try to locate a key-less node of the same type
-          for (j = s2; j <= e2; j++) {
+          for (j = s2; j <= e2; j++) { // 遍历剩余的老节点
             if (
-              newIndexToOldIndexMap[j - s2] === 0 &&
-              isSameVNodeType(prevChild, c2[j] as VNode)
+              newIndexToOldIndexMap[j - s2] === 0 && // newIndexToOldIndexMap中通过新vnode的index取出的value为0时， 说明没有被patch过
+              isSameVNodeType(prevChild, c2[j] as VNode) // 因为新老vnode的key都是undefined，tag相等， 所以判断为相同的vnode
             ) {
+              // 因为isSameVNodeType判断相等， 所以找到了与老节点对应的新节点，newIndex赋值j跳出循环
               newIndex = j
               break
             }
           }
         }
-        if (newIndex === undefined) {
+        if (newIndex === undefined) { //如果newIndex不存在， 说明老的vnode在新的vnode中不存在， 直接卸载删除
           unmount(prevChild, parentComponent, parentSuspense, true)
-        } else {
+        } else {// 老节点有对应的新节点， 直接复用进行patch
+          // 把老节点的索引，记录在存放新节点的数组
           newIndexToOldIndexMap[newIndex - s2] = i + 1
           if (newIndex >= maxNewIndexSoFar) {
+            // 存储移动节点的index
             maxNewIndexSoFar = newIndex
           } else {
+            // 更换状态， 证明已经移动过
             moved = true
           }
+          // 对相同的节点进行patch
           patch(
             prevChild,
             c2[newIndex] as VNode,
@@ -1781,7 +1804,7 @@ function baseCreateRenderer(
           patched++
         }
       }
-
+      // 移动节点和挂载新节点
       // 5.3 move and mount
       // generate longest stable subsequence only when nodes have moved
       const increasingNewIndexSequence = moved

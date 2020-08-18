@@ -72,7 +72,7 @@ export interface ParserContext {
   inPre: boolean // HTML <pre> tag, preserve whitespaces
   inVPre: boolean // v-pre, do not process directives and interpolations
 }
-
+// 解析模板
 export function baseParse(
   content: string,
   options: ParserOptions = {}
@@ -581,10 +581,10 @@ function parseAttribute(
   // Value
   let value:
     | {
-        content: string
-        isQuoted: boolean
-        loc: SourceLocation
-      }
+      content: string
+      isQuoted: boolean
+      loc: SourceLocation
+    }
     | undefined = undefined
 
   if (/^[\t\r\n\f ]*=/.test(context.source)) {
@@ -693,10 +693,10 @@ function parseAttributeValue(
   context: ParserContext
 ):
   | {
-      content: string
-      isQuoted: boolean
-      loc: SourceLocation
-    }
+    content: string
+    isQuoted: boolean
+    loc: SourceLocation
+  }
   | undefined {
   const start = getCursor(context)
   let content: string
