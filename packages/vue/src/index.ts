@@ -5,6 +5,7 @@ import { compile, CompilerOptions, CompilerError } from '@vue/compiler-dom'
 import { registerRuntimeCompiler, RenderFunction, warn } from '@vue/runtime-dom'
 import * as runtimeDom from '@vue/runtime-dom'
 import { isString, NOOP, generateCodeFrame, extend } from '@vue/shared'
+import { InternalRenderFunction } from 'packages/runtime-core/src/component'
 
 __DEV__ && initDev()
 
@@ -79,7 +80,10 @@ function compileToFunction(
   const render = (__GLOBAL__
     ? new Function(code)()
     : new Function('Vue', code)(runtimeDom)) as RenderFunction
-  // 将编译好的render函数存起来, 并将render函数返回出去
+
+    // mark the function as runtime compiled
+    ; (render as InternalRenderFunction)._rc = true
+
   return (compileCache[key] = render)
 }
 // 将编译函数注册到了runtime-core的component文件中使用
