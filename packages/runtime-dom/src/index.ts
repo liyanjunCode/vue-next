@@ -20,7 +20,7 @@ declare module '@vue/reactivity' {
     runtimeDOMBailTypes: Node | Window
   }
 }
-// vue定义的底层渲染方法
+// vue定义的底层渲染方法,比如更新属性，操作dom
 const rendererOptions = extend({ patchProp, forcePatchProp }, nodeOps)
 
 // lazy create the renderer - this makes core renderer logic tree-shakable
@@ -28,7 +28,7 @@ const rendererOptions = extend({ patchProp, forcePatchProp }, nodeOps)
 let renderer: Renderer<Element> | HydrationRenderer
 
 let enabledHydration = false
-
+// 延时创建渲染器，当用户只依赖响应式包时，可以通过tree-shaking移除核心渲染逻辑相关（具体啥情况，不知道）
 function ensureRenderer() {
   // 这里createRenderer可以自定义渲染器的底层机制, 只需自己重写rendererOptions里的方法即可， 但方法名不可变
   return renderer || (renderer = createRenderer<Node, Element>(rendererOptions))
@@ -61,12 +61,14 @@ export const createApp = ((...args) => {
   // 拿出原有的mount方法， 下步进行方法重写
   const { mount } = app
   // createApp 创建的app 挂载方法, 这里是对mount的重写， 做了操作后， 再调用原有的mount方法， 和vue2中一样
+  // 重写的目的是，原有的mount中是可跨平台的代码，与某一平台相关的操作（像web的dom操作等）在重写mount中执行
   app.mount = (containerOrSelector: Element | string): any => {
-    // 获取dom
+    // 获取dom 这里可以传字符串选择器或者 DOM 对象，但如果是字符串选择器，就需要把它转成 DOM 对象，作为最终挂载的容器
     const container = normalizeContainer(containerOrSelector)
     // 没传有效的container， 不进行挂载过程
     if (!container) return
     const component = app._component
+    // 如组件对象没有定义 render 函数和 template 模板，则取容器的 innerHTML 作为组件模板内容
     if (!isFunction(component) && !component.render && !component.template) {
       component.template = container.innerHTML
     }
