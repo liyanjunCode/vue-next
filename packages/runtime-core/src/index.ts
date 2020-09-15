@@ -159,6 +159,7 @@ export {
 } from './vnode'
 export {
   Component,
+  ConcreteComponent,
   FunctionalComponent,
   ComponentInternalInstance,
   SetupContext,
@@ -178,8 +179,12 @@ export {
 export {
   ComponentPublicInstance,
   ComponentCustomProperties
+<<<<<<< HEAD
 } from './componentProxy'
 
+=======
+} from './componentPublicInstance'
+>>>>>>> upstream/master
 export {
   Renderer, //  ts接口
   RendererNode,

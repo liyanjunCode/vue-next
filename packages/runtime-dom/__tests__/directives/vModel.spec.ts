@@ -29,6 +29,7 @@ beforeEach(() => {
 
 describe('vModel', () => {
   it('should work with text input', async () => {
+    const manualListener = jest.fn()
     const component = defineComponent({
       data() {
         return { value: null }
@@ -37,7 +38,10 @@ describe('vModel', () => {
         return [
           withVModel(
             h('input', {
-              'onUpdate:modelValue': setValue.bind(this)
+              'onUpdate:modelValue': setValue.bind(this),
+              onInput: () => {
+                manualListener(data.value)
+              }
             }),
             this.value
           )
@@ -54,6 +58,8 @@ describe('vModel', () => {
     triggerEvent('input', input)
     await nextTick()
     expect(data.value).toEqual('foo')
+    // #1931
+    expect(manualListener).toHaveBeenCalledWith('foo')
 
     data.value = 'bar'
     await nextTick()
@@ -422,6 +428,76 @@ describe('vModel', () => {
     expect(bar.checked).toEqual(true)
 
     data.value = []
+    await nextTick()
+    expect(foo.checked).toEqual(false)
+    expect(bar.checked).toEqual(false)
+  })
+
+  it(`should support Set as a checkbox model`, async () => {
+    const component = defineComponent({
+      data() {
+        return { value: new Set() }
+      },
+      render() {
+        return [
+          withVModel(
+            h('input', {
+              type: 'checkbox',
+              class: 'foo',
+              value: 'foo',
+              'onUpdate:modelValue': setValue.bind(this)
+            }),
+            this.value
+          ),
+          withVModel(
+            h('input', {
+              type: 'checkbox',
+              class: 'bar',
+              value: 'bar',
+              'onUpdate:modelValue': setValue.bind(this)
+            }),
+            this.value
+          )
+        ]
+      }
+    })
+    render(h(component), root)
+
+    const foo = root.querySelector('.foo')
+    const bar = root.querySelector('.bar')
+    const data = root._vnode.component.data
+
+    foo.checked = true
+    triggerEvent('change', foo)
+    await nextTick()
+    expect(data.value).toMatchObject(new Set(['foo']))
+
+    bar.checked = true
+    triggerEvent('change', bar)
+    await nextTick()
+    expect(data.value).toMatchObject(new Set(['foo', 'bar']))
+
+    bar.checked = false
+    triggerEvent('change', bar)
+    await nextTick()
+    expect(data.value).toMatchObject(new Set(['foo']))
+
+    foo.checked = false
+    triggerEvent('change', foo)
+    await nextTick()
+    expect(data.value).toMatchObject(new Set())
+
+    data.value = new Set(['foo'])
+    await nextTick()
+    expect(bar.checked).toEqual(false)
+    expect(foo.checked).toEqual(true)
+
+    data.value = new Set(['bar'])
+    await nextTick()
+    expect(foo.checked).toEqual(false)
+    expect(bar.checked).toEqual(true)
+
+    data.value = new Set()
     await nextTick()
     expect(foo.checked).toEqual(false)
     expect(bar.checked).toEqual(false)

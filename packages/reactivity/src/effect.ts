@@ -1,5 +1,5 @@
 import { TrackOpTypes, TriggerOpTypes } from './operations'
-import { EMPTY_OBJ, isArray } from '@vue/shared'
+import { EMPTY_OBJ, isArray, isIntegerKey, isMap } from '@vue/shared'
 
 // The main WeakMap that stores {target -> key -> dep} connections.
 // Conceptually, it's easier to think of a dependency as a Dep class
@@ -178,11 +178,7 @@ export function trigger(
   const effects = new Set<ReactiveEffect>()
   const add = (effectsToAdd: Set<ReactiveEffect> | undefined) => {
     if (effectsToAdd) {
-      effectsToAdd.forEach(effect => {
-        if (effect !== activeEffect) {
-          effects.add(effect)
-        }
-      })
+      effectsToAdd.forEach(effect => effects.add(effect))
     }
   }
 
@@ -201,18 +197,33 @@ export function trigger(
     if (key !== void 0) {
       add(depsMap.get(key))
     }
+
     // also run for iteration key on ADD | DELETE | Map.SET
-    const isAddOrDelete =
-      type === TriggerOpTypes.ADD ||
-      (type === TriggerOpTypes.DELETE && !isArray(target))
-    if (
-      isAddOrDelete ||
-      (type === TriggerOpTypes.SET && target instanceof Map)
-    ) {
-      add(depsMap.get(isArray(target) ? 'length' : ITERATE_KEY))
-    }
-    if (isAddOrDelete && target instanceof Map) {
-      add(depsMap.get(MAP_KEY_ITERATE_KEY))
+    switch (type) {
+      case TriggerOpTypes.ADD:
+        if (!isArray(target)) {
+          add(depsMap.get(ITERATE_KEY))
+          if (isMap(target)) {
+            add(depsMap.get(MAP_KEY_ITERATE_KEY))
+          }
+        } else if (isIntegerKey(key)) {
+          // new index added to array -> length changes
+          add(depsMap.get('length'))
+        }
+        break
+      case TriggerOpTypes.DELETE:
+        if (!isArray(target)) {
+          add(depsMap.get(ITERATE_KEY))
+          if (isMap(target)) {
+            add(depsMap.get(MAP_KEY_ITERATE_KEY))
+          }
+        }
+        break
+      case TriggerOpTypes.SET:
+        if (isMap(target)) {
+          add(depsMap.get(ITERATE_KEY))
+        }
+        break
     }
   }
 

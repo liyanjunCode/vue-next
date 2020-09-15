@@ -5,7 +5,8 @@ import {
   ComponentOptionsWithArrayProps,
   ComponentOptionsWithObjectProps,
   ComponentOptionsMixin,
-  RenderFunction
+  RenderFunction,
+  UnwrapAsyncBindings
 } from './componentOptions'
 import {
   SetupContext,
@@ -16,7 +17,7 @@ import {
 import {
   CreateComponentPublicInstance,
   ComponentPublicInstanceConstructor
-} from './componentProxy'
+} from './componentPublicInstance'
 import { ExtractPropTypes, ComponentPropsOptions } from './componentProps'
 import { EmitsOptions } from './componentEmits'
 import { isFunction } from '@vue/shared'
@@ -37,7 +38,7 @@ export function defineComponent<Props, RawBindings = object>(
 ): ComponentPublicInstanceConstructor<
   CreateComponentPublicInstance<
     Props,
-    RawBindings,
+    UnwrapAsyncBindings<RawBindings>,
     {},
     {},
     {},
@@ -78,7 +79,7 @@ export function defineComponent<
 ): ComponentPublicInstanceConstructor<
   CreateComponentPublicInstance<
     Props,
-    RawBindings,
+    UnwrapAsyncBindings<RawBindings>,
     D,
     C,
     M,
@@ -130,7 +131,7 @@ export function defineComponent<
   // but now we can export array props in TSX
   CreateComponentPublicInstance<
     Readonly<{ [key in PropNames]?: any }>,
-    RawBindings,
+    UnwrapAsyncBindings<RawBindings>,
     D,
     C,
     M,
@@ -181,7 +182,7 @@ export function defineComponent<
 ): ComponentPublicInstanceConstructor<
   CreateComponentPublicInstance<
     ExtractPropTypes<PropsOptions, false>,
-    RawBindings,
+    UnwrapAsyncBindings<RawBindings>,
     D,
     C,
     M,
@@ -189,7 +190,8 @@ export function defineComponent<
     Extends,
     E,
     VNodeProps & AllowedComponentProps & ComponentCustomProps
-  >
+  > &
+    Readonly<ExtractPropTypes<PropsOptions>>
 > &
   ComponentOptionsWithObjectProps<
     PropsOptions,
@@ -205,7 +207,5 @@ export function defineComponent<
 
 // implementation, close to no-op
 export function defineComponent(options: unknown) {
-  return isFunction(options)
-    ? { setup: options, name: options.name }
-    : options
+  return isFunction(options) ? { setup: options, name: options.name } : options
 }

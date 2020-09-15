@@ -20,11 +20,9 @@ The documentation of Vue 3 can be found at https://v3.vuejs.org/
 
 ### Vue Router
 
-- [![alpha](https://img.shields.io/npm/v/vue-router/next.svg)](https://www.npmjs.com/package/vue-router/v/next)
+- [![beta](https://img.shields.io/npm/v/vue-router/next.svg)](https://www.npmjs.com/package/vue-router/v/next)
 - [Github](https://github.com/vuejs/vue-router-next)
 - [RFCs](https://github.com/vuejs/rfcs/pulls?q=is%3Apr+is%3Amerged+label%3Arouter)
-
-We still have a few minor router hook behavior consistency issues with `vue-router@3.x`, but these are the only things that is blocking the router from being marked as Beta. The router is usable for new, non-critical projects.
 
 ### Vuex
 
@@ -41,7 +39,7 @@ As of v4.5.0, `vue-cli` now provides built-in option to choose Vue 3 preset when
 
 There are currently two JSX transform implementations for Vue 3 with slightly differing syntax (for Vue specific features):
 
-- [vueComponent/jsx](https://github.com/vueComponent/jsx)
+- [vuejs/jsx-next](https://github.com/vuejs/jsx-next)
 - [HcySunYang/vue-next-jsx](https://github.com/HcySunYang/vue-next-jsx)
 
 We are using [this thread](https://github.com/vuejs/jsx/issues/141) to unify the design and land on an official specification of how Vue features should be handled in JSX. If you use Vue with JSX, please provide your feedback in that thread.
