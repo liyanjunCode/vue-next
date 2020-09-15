@@ -818,9 +818,6 @@ function baseCreateRenderer(
       }, parentSuspense)
     }
   }
-<<<<<<< HEAD
-  // 循环子节点数组，循环数组创建子节点挂载子元素
-=======
 
   const setScopeId = (
     el: RendererElement,
@@ -854,7 +851,6 @@ function baseCreateRenderer(
     }
   }
 
->>>>>>> upstream/master
   const mountChildren: MountChildrenFn = (
     children,
     container,
@@ -922,6 +918,7 @@ function baseCreateRenderer(
       // (i.e. at the exact same position in the source template)
       if (patchFlag & PatchFlags.FULL_PROPS) {
         // element props contain dynamic keys, full diff needed
+        // 更新 props
         patchProps(
           el,
           n2,
@@ -1014,6 +1011,7 @@ function baseCreateRenderer(
       }
     } else if (!optimized) {
       // full diff
+      // 更新子节点
       patchChildren(
         n1,
         n2,
@@ -1375,18 +1373,6 @@ function baseCreateRenderer(
         let vnodeHook: VNodeHook | null | undefined
         const { el, props } = initialVNode
         const { bm, m, parent } = instance
-<<<<<<< HEAD
-        if (__DEV__) {
-          startMeasure(instance, `render`)
-        }
-        // 渲染组件生成子树 vnode
-        const subTree = (instance.subTree = renderComponentRoot(instance))
-        if (__DEV__) {
-          endMeasure(instance, `render`)
-        }
-=======
-
->>>>>>> upstream/master
         // beforeMount hook
         // beforeMount钩子函数， 这个我估计是vue2的写法
         if (bm) {
@@ -1478,22 +1464,6 @@ function baseCreateRenderer(
         } else {
           next = vnode
         }
-<<<<<<< HEAD
-        if (__DEV__) {
-          startMeasure(instance, `render`)
-        }
-        // 获取渲染新的子树 vnode，因为数据发生了变化，模板又和数据相关，所以渲染生成的子树 vnode 也会发生相应的变化
-        const nextTree = renderComponentRoot(instance)
-        if (__DEV__) {
-          endMeasure(instance, `render`)
-        }
-        // 缓存旧的子树 vnode
-        const prevTree = instance.subTree
-        // 存储当前的新的vnode留做下一次对比
-        instance.subTree = nextTree
-
-=======
->>>>>>> upstream/master
         next.el = vnode.el
 
         // beforeUpdate hook
@@ -1638,18 +1608,20 @@ function baseCreateRenderer(
     }
 
     // children has 3 possibilities: text, array or no children.
-    if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+    if (shapeFlag & ShapeFlags.TEXT_CHILDREN) { // 新子节点是文本形式
       // text children fast path
+      // 现在子节点是文本节点形式，以前是子节点是数组形式， 先进行卸载
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
         unmountChildren(c1 as VNode[], parentComponent, parentSuspense)
       }
+      // 文本对比不同，则替换为新文本
       if (c2 !== c1) {
         hostSetElementText(container, c2 as string)
       }
-    } else {
-      if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+    } else { // 新子节点是数组形式或null
+      if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) { //原来子节点都是数组格式
         // prev children was array
-        if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+        if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) { // 新的子节点仍然是数组，则做完整地 diff
           // two arrays, cannot assume anything, do full diff
           patchKeyedChildren(
             c1 as VNode[],
@@ -1662,16 +1634,19 @@ function baseCreateRenderer(
             optimized
           )
         } else {
+          // 新节点没有子节点， 直接清空原有老节点
           // no new children, just unmount old
           unmountChildren(c1 as VNode[], parentComponent, parentSuspense, true)
         }
       } else {
-        // prev children was text OR null
-        // new children is array OR null
+        // prev children was text OR null  // 之前的子节点是文本节点或者为空
+        // new children is array OR null   // 新子元素形式为 数组或null
+        // 老节点是文本， 先置空
         if (prevShapeFlag & ShapeFlags.TEXT_CHILDREN) {
           hostSetElementText(container, '')
         }
         // mount new if array
+        // 新节点是数组进行，子节点挂载
         if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
           mountChildren(
             c2 as VNodeArrayChildren,

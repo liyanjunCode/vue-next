@@ -112,23 +112,6 @@ export interface ClassComponent {
   __vccOpts: ComponentOptions
 }
 
-<<<<<<< HEAD
-export type Component = ComponentOptions | FunctionalComponent<any>
-
-// A type used in public APIs where a component type is expected.
-// The constructor type is an artificial type returned by defineComponent().
-export type PublicAPIComponent =
-  | Component
-  | {
-    new(...args: any[]): CreateComponentPublicInstance<
-      any,
-      any,
-      any,
-      any,
-      any
-    >
-  }
-=======
 /**
  * Concrete component type matches its actual value: it's either an options
  * object, or a function. Use this where the code expects to work with actual
@@ -142,7 +125,6 @@ export type ConcreteComponent = ComponentOptions | FunctionalComponent<any, any>
  * The constructor type is an artificial type returned by defineComponent().
  */
 export type Component = ConcreteComponent | ComponentPublicInstanceConstructor
->>>>>>> upstream/master
 
 export { ComponentOptions }
 
@@ -620,8 +602,7 @@ export function handleSetupResult(
     }
   } else if (__DEV__ && setupResult !== undefined) {
     warn(
-      `setup() should return an object. Received: ${
-      setupResult === null ? 'null' : typeof setupResult
+      `setup() should return an object. Received: ${setupResult === null ? 'null' : typeof setupResult
       }`
     )
   }
@@ -793,7 +774,7 @@ export function formatComponentName(
     name =
       inferFromRegistry(
         instance.components ||
-          (instance.parent.type as ComponentOptions).components
+        (instance.parent.type as ComponentOptions).components
       ) || inferFromRegistry(instance.appContext.components)
   }
 
