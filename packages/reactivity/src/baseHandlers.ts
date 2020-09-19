@@ -30,45 +30,55 @@ const get = /*#__PURE__*/ createGetter()
 const shallowGet = /*#__PURE__*/ createGetter(false, true)
 const readonlyGet = /*#__PURE__*/ createGetter(true)
 const shallowReadonlyGet = /*#__PURE__*/ createGetter(true, true)
-
+// 数组的数据结构， 内部的数据可能进行过响应式转换，用'includes', 'indexOf', 'lastIndexOf'去判断原数组就
+//不能正确的判断是否在数组中了，所以这里是拦截了这些方法， 在内部尝试用数组原型方法，找到了直接返回
+// 未找到，再把数组内的数据转换为原来的数据， 再用数组原型方法判断
 const arrayInstrumentations: Record<string, Function> = {}
-;['includes', 'indexOf', 'lastIndexOf'].forEach(key => {
-  arrayInstrumentations[key] = function(...args: any[]): any {
-    const arr = toRaw(this) as any
-    for (let i = 0, l = (this as any).length; i < l; i++) {
-      track(arr, TrackOpTypes.GET, i + '')
+  ;['includes', 'indexOf', 'lastIndexOf'].forEach(key => {
+    arrayInstrumentations[key] = function (...args: any[]): any {
+      // toRaw 可以把响应式对象转成原始数据
+      const arr = toRaw(this) as any
+      for (let i = 0, l = (this as any).length; i < l; i++) {
+        // 依赖收集
+        track(arr, TrackOpTypes.GET, i + '')
+      }
+      // we run the method using the original args first (which may be reactive)
+      // 先尝试用参数本身，可能是响应式数据
+      const res = arr[key](...args)
+      if (res === -1 || res === false) {
+        // if that didn't work, run it again using raw values.
+        // 如果失败，再尝试把参数转成原始数据
+        return arr[key](...args.map(toRaw))
+      } else {
+        return res
+      }
     }
-    // we run the method using the original args first (which may be reactive)
-    const res = arr[key](...args)
-    if (res === -1 || res === false) {
-      // if that didn't work, run it again using raw values.
-      return arr[key](...args.map(toRaw))
-    } else {
-      return res
-    }
-  }
-})
+  })
 
 function createGetter(isReadonly = false, shallow = false) {
   return function get(target: Target, key: string | symbol, receiver: object) {
     if (key === ReactiveFlags.IS_REACTIVE) {
+      // 代理 observed.__v_isReactive
       return !isReadonly
     } else if (key === ReactiveFlags.IS_READONLY) {
+      // 代理 observed.__v_isReadonly
       return isReadonly
     } else if (
       key === ReactiveFlags.RAW &&
       receiver === (isReadonly ? readonlyMap : reactiveMap).get(target)
     ) {
+      // 代理 observed.__v_raw
       return target
     }
 
     const targetIsArray = isArray(target)
+    // arrayInstrumentations（是个对象） 包含对数组一些方法修改的函数'includes', 'indexOf', 'lastIndexOf'
     if (targetIsArray && hasOwn(arrayInstrumentations, key)) {
       return Reflect.get(arrayInstrumentations, key, receiver)
     }
-
+    // 求值
     const res = Reflect.get(target, key, receiver)
-
+    // 内置 Symbol key 不需要依赖收集
     const keyIsSymbol = isSymbol(key)
     if (
       keyIsSymbol
@@ -77,7 +87,7 @@ function createGetter(isReadonly = false, shallow = false) {
     ) {
       return res
     }
-
+    // 依赖收集  isReadonly 为 true 则不需要依赖收集
     if (!isReadonly) {
       track(target, TrackOpTypes.GET, key)
     }
@@ -91,11 +101,12 @@ function createGetter(isReadonly = false, shallow = false) {
       const shouldUnwrap = !targetIsArray || !isIntegerKey(key)
       return shouldUnwrap ? res.value : res
     }
-
+    // 如果 res 是个对象或者数组类型，则递归执行 reactive 函数把 res 变成响应式
     if (isObject(res)) {
       // Convert returned value into a proxy as well. we do the isObject check
       // here to avoid invalid value warning. Also need to lazy access readonly
       // and reactive here to avoid circular dependency.
+      // 如果 res 是个对象或者数组类型，则递归执行 readonly 函数把 res readonly
       return isReadonly ? readonly(res) : reactive(res)
     }
 
@@ -105,7 +116,7 @@ function createGetter(isReadonly = false, shallow = false) {
 
 const set = /*#__PURE__*/ createSetter()
 const shallowSet = /*#__PURE__*/ createSetter(true)
-
+// 创建set 函数
 function createSetter(shallow = false) {
   return function set(
     target: object,
@@ -123,14 +134,18 @@ function createSetter(shallow = false) {
     } else {
       // in shallow mode, objects are set as-is regardless of reactive or not
     }
-
+    // key 是否存在于 target
     const hadKey =
       isArray(target) && isIntegerKey(key)
         ? Number(key) < target.length
         : hasOwn(target, key)
+    // Reflect.set 设置值
     const result = Reflect.set(target, key, value, receiver)
     // don't trigger if target is something up in the prototype chain of original
-    if (target === toRaw(receiver)) {
+    // 如果目标的原型链也是一个 proxy，通过 Reflect.set 修改原型链上的属性会再次触发 setter，
+    //这种情况下就没必要触发两次 trigger 了
+    if (target === toRaw(receiver)) {//通过 trigger 函数派发通知
+      //hadKey判断是新增 还是修改
       if (!hadKey) {
         trigger(target, TriggerOpTypes.ADD, key, value)
       } else if (hasChanged(value, oldValue)) {

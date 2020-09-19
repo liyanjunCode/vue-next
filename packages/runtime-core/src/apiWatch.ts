@@ -46,16 +46,16 @@ export type WatchCallback<V = any, OV = any> = (
 
 type MapSources<T> = {
   [K in keyof T]: T[K] extends WatchSource<infer V>
-    ? V
-    : T[K] extends object ? T[K] : never
+  ? V
+  : T[K] extends object ? T[K] : never
 }
 
 type MapOldSources<T, Immediate> = {
   [K in keyof T]: T[K] extends WatchSource<infer V>
-    ? Immediate extends true ? (V | undefined) : V
-    : T[K] extends object
-      ? Immediate extends true ? (T[K] | undefined) : T[K]
-      : never
+  ? Immediate extends true ? (V | undefined) : V
+  : T[K] extends object
+  ? Immediate extends true ? (T[K] | undefined) : T[K]
+  : never
 }
 
 type InvalidateCbRegistrator = (cb: () => void) => void
@@ -115,6 +115,7 @@ export function watch<
 ): WatchStopHandle
 
 // implementation
+// watch 函数的实现
 export function watch<T = any>(
   source: WatchSource<T> | WatchSource<T>[],
   cb: WatchCallback<T>,
@@ -123,8 +124,8 @@ export function watch<T = any>(
   if (__DEV__ && !isFunction(cb)) {
     warn(
       `\`watch(fn, options?)\` signature has been moved to a separate API. ` +
-        `Use \`watchEffect(fn, options?)\` instead. \`watch\` now only ` +
-        `supports \`watch(source, cb, options?) signature.`
+      `Use \`watchEffect(fn, options?)\` instead. \`watch\` now only ` +
+      `supports \`watch(source, cb, options?) signature.`
     )
   }
   return doWatch(source, cb, options)
@@ -140,31 +141,33 @@ function doWatch(
     if (immediate !== undefined) {
       warn(
         `watch() "immediate" option is only respected when using the ` +
-          `watch(source, callback, options?) signature.`
+        `watch(source, callback, options?) signature.`
       )
     }
     if (deep !== undefined) {
       warn(
         `watch() "deep" option is only respected when using the ` +
-          `watch(source, callback, options?) signature.`
+        `watch(source, callback, options?) signature.`
       )
     }
   }
-
+  // source 不合法的时候会报警告 
   const warnInvalidSource = (s: unknown) => {
     warn(
       `Invalid watch source: `,
       s,
       `A watch source can only be a getter/effect function, a ref, ` +
-        `a reactive object, or an array of these types.`
+      `a reactive object, or an array of these types.`
     )
   }
 
   let getter: () => any
   const isRefSource = isRef(source)
   if (isRefSource) {
+    //如果 source 是 ref 对象，则创建一个访问 source.value 的 getter 函数
     getter = () => (source as Ref).value
   } else if (isReactive(source)) {
+    //如果 source 是 reactive 对象，则创建一个访问 source 的 getter 函数，并设置 deep 为 true（deep 的作用我稍后会说）;
     getter = () => source
     deep = true
   } else if (isArray(source)) {

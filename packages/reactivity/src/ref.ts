@@ -50,10 +50,12 @@ class RefImpl<T> {
   public readonly __v_isRef = true
 
   constructor(private _rawValue: T, private readonly _shallow = false) {
+    // 如果是对象或者数组类型，则convert转换一个 reactive 对象。
     this._value = _shallow ? _rawValue : convert(_rawValue)
   }
 
   get value() {
+    // 依赖收集，key 为固定的 value
     track(toRaw(this), TrackOpTypes.GET, 'value')
     return this._value
   }
@@ -69,6 +71,7 @@ class RefImpl<T> {
 
 function createRef(rawValue: unknown, shallow = false) {
   if (isRef(rawValue)) {
+    // 如果传入的就是一个 ref，那么返回自身即可，处理嵌套 ref 的情况。
     return rawValue
   }
   return new RefImpl(rawValue, shallow)
@@ -153,7 +156,7 @@ export function toRefs<T extends object>(object: T): ToRefs<T> {
 class ObjectRefImpl<T extends object, K extends keyof T> {
   public readonly __v_isRef = true
 
-  constructor(private readonly _object: T, private readonly _key: K) {}
+  constructor(private readonly _object: T, private readonly _key: K) { }
 
   get value() {
     return this._object[this._key]
@@ -193,7 +196,7 @@ type BaseTypes = string | number | boolean
  * augmentations in its generated d.ts, so we have to manually append them
  * to the final generated d.ts in our build process.
  */
-export interface RefUnwrapBailTypes {}
+export interface RefUnwrapBailTypes { }
 
 export type ShallowUnwrapRef<T> = {
   [K in keyof T]: T[K] extends Ref<infer V> ? V : T[K]
@@ -211,8 +214,8 @@ type UnwrapRefSimple<T> = T extends
   | RefUnwrapBailTypes[keyof RefUnwrapBailTypes]
   ? T
   : T extends Array<any>
-    ? { [K in keyof T]: UnwrapRefSimple<T[K]> }
-    : T extends object ? UnwrappedObject<T> : T
+  ? { [K in keyof T]: UnwrapRefSimple<T[K]> }
+  : T extends object ? UnwrappedObject<T> : T
 
 // Extract all known symbols from an object
 // when unwrapping Object the symbols are not `in keyof`, this should cover all the

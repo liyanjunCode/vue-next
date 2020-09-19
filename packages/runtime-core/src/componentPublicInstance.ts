@@ -64,7 +64,7 @@ import { UnionToIntersection } from './helpers/typeUtils'
  * vm.$router.push('/')
  * ```
  */
-export interface ComponentCustomProperties {}
+export interface ComponentCustomProperties { }
 
 type IsDefaultMixinComponent<T> = T extends ComponentOptionsMixin
   ? ComponentOptionsMixin extends T ? true : false
@@ -81,8 +81,8 @@ type MixinToOptionTypes<T> = T extends ComponentOptionsBase<
   any
 >
   ? OptionTypesType<P & {}, B & {}, D & {}, C & {}, M & {}> &
-      IntersectionMixin<Mixin> &
-      IntersectionMixin<Extends>
+  IntersectionMixin<Mixin> &
+  IntersectionMixin<Extends>
   : never
 
 // ExtractMixin(map type) is used to resolve circularly references
@@ -97,18 +97,18 @@ type IntersectionMixin<T> = IsDefaultMixinComponent<T> extends true
 type UnwrapMixinsType<
   T,
   Type extends OptionTypesKeys
-> = T extends OptionTypesType ? T[Type] : never
+  > = T extends OptionTypesType ? T[Type] : never
 
 type EnsureNonVoid<T> = T extends void ? {} : T
 
 export type ComponentPublicInstanceConstructor<
   T extends ComponentPublicInstance = ComponentPublicInstance<any>
-> = {
-  __isFragment?: never
-  __isTeleport?: never
-  __isSuspense?: never
-  new (...args: any[]): T
-}
+  > = {
+    __isFragment?: never
+    __isTeleport?: never
+    __isSuspense?: never
+    new(...args: any[]): T
+  }
 
 export type CreateComponentPublicInstance<
   P = {},
@@ -125,19 +125,19 @@ export type CreateComponentPublicInstance<
   PublicB = UnwrapMixinsType<PublicMixin, 'B'> & EnsureNonVoid<B>,
   PublicD = UnwrapMixinsType<PublicMixin, 'D'> & EnsureNonVoid<D>,
   PublicC extends ComputedOptions = UnwrapMixinsType<PublicMixin, 'C'> &
-    EnsureNonVoid<C>,
+  EnsureNonVoid<C>,
   PublicM extends MethodOptions = UnwrapMixinsType<PublicMixin, 'M'> &
-    EnsureNonVoid<M>
-> = ComponentPublicInstance<
-  PublicP,
-  PublicB,
-  PublicD,
-  PublicC,
-  PublicM,
-  E,
-  PublicProps,
-  ComponentOptionsBase<P, B, D, C, M, Mixin, Extends, E>
->
+  EnsureNonVoid<M>
+  > = ComponentPublicInstance<
+    PublicP,
+    PublicB,
+    PublicD,
+    PublicC,
+    PublicM,
+    E,
+    PublicProps,
+    ComponentOptionsBase<P, B, D, C, M, Mixin, Extends, E>
+  >
 // public properties exposed on the proxy, which is used as the render context
 // in templates (as `this` in the render option)
 export type ComponentPublicInstance<
@@ -149,26 +149,26 @@ export type ComponentPublicInstance<
   E extends EmitsOptions = {},
   PublicProps = P,
   Options = ComponentOptionsBase<any, any, any, any, any, any, any, any>
-> = {
-  $: ComponentInternalInstance
-  $data: D
-  $props: P & PublicProps
-  $attrs: Data
-  $refs: Data
-  $slots: Slots
-  $root: ComponentPublicInstance | null
-  $parent: ComponentPublicInstance | null
-  $emit: EmitFn<E>
-  $el: any
-  $options: Options
-  $forceUpdate: ReactiveEffect
-  $nextTick: typeof nextTick
-  $watch(
-    source: string | Function,
-    cb: Function,
-    options?: WatchOptions
-  ): WatchStopHandle
-} & P &
+  > = {
+    $: ComponentInternalInstance
+    $data: D
+    $props: P & PublicProps
+    $attrs: Data
+    $refs: Data
+    $slots: Slots
+    $root: ComponentPublicInstance | null
+    $parent: ComponentPublicInstance | null
+    $emit: EmitFn<E>
+    $el: any
+    $options: Options
+    $forceUpdate: ReactiveEffect
+    $nextTick: typeof nextTick
+    $watch(
+      source: string | Function,
+      cb: Function,
+      options?: WatchOptions
+    ): WatchStopHandle
+  } & P &
   ShallowUnwrapRef<UnwrapAsyncBindings<B>> &
   D &
   ExtractComputedReturns<C> &
@@ -206,7 +206,7 @@ export interface ComponentRenderContext {
   [key: string]: any
   _: ComponentInternalInstance
 }
-
+//instance.ctx 设置setupState、ctx、data、props 等数据代理的拦截器函数
 export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
   get({ _: instance }: ComponentRenderContext, key: string) {
     const {
@@ -231,8 +231,16 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
     // access on a plain object, so we use an accessCache object (with null
     // prototype) to memoize what access type a key corresponds to.
     let normalizedProps
+    // key 不是$开头的情况，这部分数据可能是 setupState、data、props、ctx 中的一种
     if (key[0] !== '$') {
+      // setupState / data / props / ctx
+      // 渲染代理的属性访问缓存中
+      //如果 key 不以 $ 开头，那么就依次判断 setupState、data、props、ctx 中是否包含这个 key，
+      //如果包含就返回对应值。注意这个判断顺序很重要，在 key 相同时它会决定数据获取的优先级
+      // accessCache 缓存是为了优化， 因为对象访问key比hasOwn去判断key是否存在代价小，速度快，只需每个key
+      // 值第一次判断是否在对象上存在获取数据key进行缓存， 下一次知道key是存在的直接读取对象数据， 
       const n = accessCache![key]
+      // 从缓存中取
       if (n !== undefined) {
         switch (n) {
           case AccessTypes.SETUP:
@@ -245,10 +253,12 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
             return props![key]
           // default: just fallthrough
         }
+        // 从 setupState 中取数据
       } else if (setupState !== EMPTY_OBJ && hasOwn(setupState, key)) {
         accessCache![key] = AccessTypes.SETUP
         return setupState[key]
       } else if (data !== EMPTY_OBJ && hasOwn(data, key)) {
+        // 从 data 中取数据
         accessCache![key] = AccessTypes.DATA
         return data[key]
       } else if (
@@ -257,20 +267,24 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
         (normalizedProps = instance.propsOptions[0]) &&
         hasOwn(normalizedProps, key)
       ) {
+        // 从 props 中取数据
         accessCache![key] = AccessTypes.PROPS
         return props![key]
       } else if (ctx !== EMPTY_OBJ && hasOwn(ctx, key)) {
+        // 从 ctx 中取数据
         accessCache![key] = AccessTypes.CONTEXT
         return ctx[key]
       } else if (!__FEATURE_OPTIONS_API__ || !isInBeforeCreate) {
+        // 都取不到
         accessCache![key] = AccessTypes.OTHER
       }
     }
-
+    // 用于判断是不是vue公开的属性或方法（比如 $parent）
     const publicGetter = publicPropertiesMap[key]
     let cssModule, globalProperties
     // public $xxx properties
     if (publicGetter) {
+      // 公开的 $xxx 属性或方法
       if (key === '$attrs') {
         track(instance, TrackOpTypes.GET, key)
         __DEV__ && markAttrsAccessed()
@@ -278,18 +292,21 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       return publicGetter(instance)
     } else if (
       // css module (injected by vue-loader)
+      // css 模块，通过 vue-loader 编译的时候注入
       (cssModule = type.__cssModules) &&
       (cssModule = cssModule[key])
     ) {
       return cssModule
     } else if (ctx !== EMPTY_OBJ && hasOwn(ctx, key)) {
       // user may set custom properties to `this` that start with `$`
+      // 用户自定义的属性，也用 `$` 开头
       accessCache![key] = AccessTypes.CONTEXT
       return ctx[key]
     } else if (
       // global properties
+      // 全局定义的属性
       ((globalProperties = appContext.config.globalProperties),
-      hasOwn(globalProperties, key))
+        hasOwn(globalProperties, key))
     ) {
       return globalProperties[key]
     } else if (
@@ -305,16 +322,18 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
         (key[0] === '$' || key[0] === '_') &&
         hasOwn(data, key)
       ) {
+        // 如果在 data 中定义的数据以 $ 开头，会报警告，因为 $ 是保留字符，不会做代理
         warn(
           `Property ${JSON.stringify(
             key
           )} must be accessed via $data because it starts with a reserved ` +
-            `character ("$" or "_") and is not proxied on the render context.`
+          `character ("$" or "_") and is not proxied on the render context.`
         )
       } else {
+        // 在模板中使用的变量如果没有定义，报警告
         warn(
           `Property ${JSON.stringify(key)} was accessed during render ` +
-            `but is not defined on instance.`
+          `but is not defined on instance.`
         )
       }
     }
@@ -327,10 +346,12 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
   ): boolean {
     const { data, setupState, ctx } = instance
     if (setupState !== EMPTY_OBJ && hasOwn(setupState, key)) {
+      // 给 setupState 赋值
       setupState[key] = value
     } else if (data !== EMPTY_OBJ && hasOwn(data, key)) {
+      // 给 data 赋值
       data[key] = value
-    } else if (key in instance.props) {
+    } else if (key in instance.props) {  // 不能直接给 props 赋值
       __DEV__ &&
         warn(
           `Attempting to mutate prop "${key}". Props are readonly.`,
@@ -338,11 +359,11 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
         )
       return false
     }
-    if (key[0] === '$' && key.slice(1) in instance) {
+    if (key[0] === '$' && key.slice(1) in instance) { // 不能给 Vue 内部以 $ 开头的保留属性赋值
       __DEV__ &&
         warn(
           `Attempting to mutate public property "${key}". ` +
-            `Properties starting with $ are reserved and readonly.`,
+          `Properties starting with $ are reserved and readonly.`,
           instance
         )
       return false
@@ -354,12 +375,13 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
           value
         })
       } else {
+        // 用户自定义数据赋值， 就是不用做响应式的数据
         ctx[key] = value
       }
     }
     return true
   },
-
+  // 当我们判断属性是否存在于 instance.ctx 渲染上下文中时，就会进入 has 函数
   has(
     {
       _: { data, setupState, accessCache, ctx, appContext, propsOptions }
@@ -367,6 +389,8 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
     key: string
   ) {
     let normalizedProps
+    // 这个函数的实现很简单，依次判断 key 是否存在于 accessCache、data、setupState、props 、用户数据、
+    // 公开属性以及全局属性中，然后返回结果。
     return (
       accessCache![key] !== undefined ||
       (data !== EMPTY_OBJ && hasOwn(data, key)) ||
@@ -383,7 +407,7 @@ if (__DEV__ && !__TEST__) {
   PublicInstanceProxyHandlers.ownKeys = (target: ComponentRenderContext) => {
     warn(
       `Avoid app logic that relies on enumerating keys on a component instance. ` +
-        `The keys will be empty in production mode to avoid performance overhead.`
+      `The keys will be empty in production mode to avoid performance overhead.`
     )
     return Reflect.ownKeys(target)
   }
@@ -401,6 +425,7 @@ export const RuntimeCompiledPublicInstanceProxyHandlers = extend(
       return PublicInstanceProxyHandlers.get!(target, key, target)
     },
     has(_: ComponentRenderContext, key: string) {
+      // 如果 key 以 _ 开头或者 key 在全局变量白名单内，则 has 为 false
       const has = key[0] !== '_' && !isGloballyWhitelisted(key)
       if (__DEV__ && !has && PublicInstanceProxyHandlers.has!(_, key)) {
         warn(
@@ -484,7 +509,7 @@ export function exposeSetupStateOnRenderContext(
         `setup() return property ${JSON.stringify(
           key
         )} should not start with "$" or "_" ` +
-          `which are reserved prefixes for Vue internals.`
+        `which are reserved prefixes for Vue internals.`
       )
       return
     }

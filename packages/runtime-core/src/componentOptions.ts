@@ -68,7 +68,7 @@ import { VNodeChild } from './vnode'
  * }
  * ```
  */
-export interface ComponentCustomOptions {}
+export interface ComponentCustomOptions { }
 
 export type RenderFunction = () => VNodeChild
 
@@ -84,10 +84,10 @@ export interface ComponentOptionsBase<
   Extends extends ComponentOptionsMixin,
   E extends EmitsOptions,
   EE extends string = string
->
+  >
   extends LegacyOptions<Props, D, C, M, Mixin, Extends>,
-    ComponentInternalOptions,
-    ComponentCustomOptions {
+  ComponentInternalOptions,
+  ComponentCustomOptions {
   setup?: (
     this: void,
     props: Props,
@@ -162,9 +162,9 @@ export type ComponentOptionsWithoutProps<
   Extends extends ComponentOptionsMixin = ComponentOptionsMixin,
   E extends EmitsOptions = EmitsOptions,
   EE extends string = string
-> = ComponentOptionsBase<Props, RawBindings, D, C, M, Mixin, Extends, E, EE> & {
-  props?: undefined
-} & ThisType<
+  > = ComponentOptionsBase<Props, RawBindings, D, C, M, Mixin, Extends, E, EE> & {
+    props?: undefined
+  } & ThisType<
     CreateComponentPublicInstance<
       {},
       RawBindings,
@@ -189,9 +189,9 @@ export type ComponentOptionsWithArrayProps<
   E extends EmitsOptions = EmitsOptions,
   EE extends string = string,
   Props = Readonly<{ [key in PropNames]?: any }>
-> = ComponentOptionsBase<Props, RawBindings, D, C, M, Mixin, Extends, E, EE> & {
-  props: PropNames[]
-} & ThisType<
+  > = ComponentOptionsBase<Props, RawBindings, D, C, M, Mixin, Extends, E, EE> & {
+    props: PropNames[]
+  } & ThisType<
     CreateComponentPublicInstance<
       Props,
       RawBindings,
@@ -215,9 +215,9 @@ export type ComponentOptionsWithObjectProps<
   E extends EmitsOptions = EmitsOptions,
   EE extends string = string,
   Props = Readonly<ExtractPropTypes<PropsOptions>>
-> = ComponentOptionsBase<Props, RawBindings, D, C, M, Mixin, Extends, E, EE> & {
-  props: PropsOptions & ThisType<void>
-} & ThisType<
+  > = ComponentOptionsBase<Props, RawBindings, D, C, M, Mixin, Extends, E, EE> & {
+    props: PropsOptions & ThisType<void>
+  } & ThisType<
     CreateComponentPublicInstance<
       Props,
       RawBindings,
@@ -258,8 +258,8 @@ export interface MethodOptions {
 
 export type ExtractComputedReturns<T extends any> = {
   [key in keyof T]: T[key] extends { get: (...args: any[]) => infer TReturn }
-    ? TReturn
-    : T[key] extends (...args: any[]) => infer TReturn ? TReturn : never
+  ? TReturn
+  : T[key] extends (...args: any[]) => infer TReturn ? TReturn : never
 }
 
 type WatchOptionItem =
@@ -274,9 +274,9 @@ type ComponentWatchOptions = Record<string, ComponentWatchOptionItem>
 type ComponentInjectOptions =
   | string[]
   | Record<
-      string | symbol,
-      string | symbol | { from?: string | symbol; default?: unknown }
-    >
+    string | symbol,
+    string | symbol | { from?: string | symbol; default?: unknown }
+  >
 
 interface LegacyOptions<
   Props,
@@ -285,7 +285,7 @@ interface LegacyOptions<
   M extends MethodOptions,
   Mixin extends ComponentOptionsMixin,
   Extends extends ComponentOptionsMixin
-> {
+  > {
   // allow any custom options
   [key: string]: any
 
@@ -338,13 +338,13 @@ export type OptionTypesType<
   D = {},
   C extends ComputedOptions = {},
   M extends MethodOptions = {}
-> = {
-  P: P
-  B: B
-  D: D
-  C: C
-  M: M
-}
+  > = {
+    P: P
+    B: B
+    D: D
+    C: C
+    M: M
+  }
 
 const enum OptionTypes {
   PROPS = 'Props',
@@ -368,7 +368,7 @@ function createDuplicateChecker() {
 type DataFn = (vm: ComponentPublicInstance) => any
 
 export let isInBeforeCreate = false
-
+// Options API：兼容 Vue.js 2.x
 export function applyOptions(
   instance: ComponentInternalInstance,
   options: ComponentOptions,
@@ -406,7 +406,7 @@ export function applyOptions(
     renderTriggered,
     errorCaptured
   } = options
-
+  // instance.proxy 作为 this
   const publicThis = instance.proxy!
   const ctx = instance.ctx
   const globalMixins = instance.appContext.mixins
@@ -491,7 +491,7 @@ export function applyOptions(
       } else if (__DEV__) {
         warn(
           `Method "${key}" has type "${typeof methodHandler}" in the component definition. ` +
-            `Did you reference the function correctly?`
+          `Did you reference the function correctly?`
         )
       }
     }
@@ -539,10 +539,10 @@ export function applyOptions(
           ? opt.set.bind(publicThis)
           : __DEV__
             ? () => {
-                warn(
-                  `Write operation failed: computed property "${key}" is readonly.`
-                )
-              }
+              warn(
+                `Write operation failed: computed property "${key}" is readonly.`
+              )
+            }
             : NOOP
       const c = computed({
         get,
@@ -587,20 +587,20 @@ export function applyOptions(
     if (components) {
       extend(
         instance.components ||
-          (instance.components = extend(
-            {},
-            (instance.type as ComponentOptions).components
-          ) as Record<string, ConcreteComponent>),
+        (instance.components = extend(
+          {},
+          (instance.type as ComponentOptions).components
+        ) as Record<string, ConcreteComponent>),
         components
       )
     }
     if (directives) {
       extend(
         instance.directives ||
-          (instance.directives = extend(
-            {},
-            (instance.type as ComponentOptions).directives
-          )),
+        (instance.directives = extend(
+          {},
+          (instance.type as ComponentOptions).directives
+        )),
         directives
       )
     }
@@ -726,15 +726,15 @@ function resolveData(
   if (__DEV__ && !isFunction(dataFn)) {
     warn(
       `The data option must be a function. ` +
-        `Plain object usage is no longer supported.`
+      `Plain object usage is no longer supported.`
     )
   }
   const data = dataFn.call(publicThis, publicThis)
   if (__DEV__ && isPromise(data)) {
     warn(
       `data() returned a Promise - note data() cannot be async; If you ` +
-        `intend to perform data fetching before component renders, use ` +
-        `async setup() + <Suspense>.`
+      `intend to perform data fetching before component renders, use ` +
+      `async setup() + <Suspense>.`
     )
   }
   if (!isObject(data)) {

@@ -35,10 +35,12 @@ class ComputedRefImpl<T> {
     isReadonly: boolean
   ) {
     this.effect = effect(getter, {
-      lazy: true,
+      lazy: true, // 标识是计算属性
       scheduler: () => {
+        // 数据是否脏的 ， 标识是否重新计算
         if (!this._dirty) {
           this._dirty = true
+          // 通知收集了计算属性的地方都重新渲染，渲染时取最新值
           trigger(toRaw(this), TriggerOpTypes.SET, 'value')
         }
       }
@@ -48,15 +50,18 @@ class ComputedRefImpl<T> {
   }
 
   get value() {
+    // 计算属性的 getter 
     if (this._dirty) {
       this._value = this.effect()
       this._dirty = false
     }
+    // 依赖收集，收集运行访问该计算属性的 activeEffect 
     track(toRaw(this), TrackOpTypes.GET, 'value')
     return this._value
   }
 
   set value(newValue: T) {
+    // 计算属性的 setter 
     this._setter(newValue)
   }
 }
@@ -75,8 +80,8 @@ export function computed<T>(
     getter = getterOrOptions
     setter = __DEV__
       ? () => {
-          console.warn('Write operation failed: computed value is readonly')
-        }
+        console.warn('Write operation failed: computed value is readonly')
+      }
       : NOOP
   } else {
     getter = getterOrOptions.get

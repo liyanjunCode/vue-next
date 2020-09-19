@@ -374,79 +374,82 @@ export function createComponentInstance(
 ) {
   const type = vnode.type as ConcreteComponent
   // inherit parent app context - or - if root, adopt from root vnode
+  // 继承父组件实例上的 appContext，如果是根组件，则直接从根 vnode 中取。
   const appContext =
     (parent ? parent.appContext : vnode.appContext) || emptyAppContext
 
   const instance: ComponentInternalInstance = {
-    uid: uid++,
-    vnode,
-    type,
-    parent,
-    appContext,
-    root: null!, // to be immediately set
-    next: null,
-    subTree: null!, // will be set synchronously right after creation
-    update: null!, // will be set synchronously right after creation
-    render: null,
-    proxy: null,
-    withProxy: null,
-    effects: null,
-    provides: parent ? parent.provides : Object.create(appContext.provides),
-    accessCache: null!,
-    renderCache: [],
+    uid: uid++,// 组件唯一 id
+    vnode, // 组件 vnode
+    type, // vnode 节点类型
+    parent, // 父组件实例
+    appContext,// app 上下文
+    root: null!, // to be immediately set// 根组件实例
+    next: null,// 新的组件 vnode
+    subTree: null!, // will be set synchronously right after creation // 子节点 vnode
+    update: null!, // will be set synchronously right after creation// 带副作用更新函数
+    render: null, // 渲染函数
+    proxy: null, // 渲染上下文代理
+    withProxy: null, // 带有 with 区块的渲染上下文代理
+    effects: null, // 响应式相关对象
+    provides: parent ? parent.provides : Object.create(appContext.provides),// 依赖注入相关
+    accessCache: null!, // 渲染代理的属性访问缓存
+    renderCache: [], // 渲染缓存
 
     // local resovled assets
-    components: null,
-    directives: null,
+    components: null, // 注册的组件
+    directives: null,// 注册的指令
 
     // resolved props and emits options
     propsOptions: normalizePropsOptions(type, appContext),
     emitsOptions: normalizeEmitsOptions(type, appContext),
 
     // emit
-    emit: null as any, // to be set immediately
+    emit: null as any, // to be set immediately // 派发事件方法
     emitted: null,
 
     // state
-    ctx: EMPTY_OBJ,
-    data: EMPTY_OBJ,
-    props: EMPTY_OBJ,
-    attrs: EMPTY_OBJ,
-    slots: EMPTY_OBJ,
-    refs: EMPTY_OBJ,
-    setupState: EMPTY_OBJ,
-    setupContext: null,
+    ctx: EMPTY_OBJ,// 渲染上下文
+    data: EMPTY_OBJ, // data 数据
+    props: EMPTY_OBJ, // props 数据
+    attrs: EMPTY_OBJ, // 普通属性
+    slots: EMPTY_OBJ, // 插槽相关
+    refs: EMPTY_OBJ, // 组件或者 DOM 的 ref 引用
+    setupState: EMPTY_OBJ,  // setup 函数返回的响应式结果
+    setupContext: null,// setup 函数上下文数据
 
     // suspense related
-    suspense,
-    asyncDep: null,
-    asyncResolved: false,
+    suspense,// suspense 相关
+    asyncDep: null,// suspense 异步依赖
+    asyncResolved: false,  // suspense 异步依赖是否都已处理
 
     // lifecycle hooks
     // not using enums here because it results in computed properties
-    isMounted: false,
-    isUnmounted: false,
-    isDeactivated: false,
-    bc: null,
-    c: null,
-    bm: null,
-    m: null,
-    bu: null,
-    u: null,
-    um: null,
-    bum: null,
-    da: null,
-    a: null,
-    rtg: null,
-    rtc: null,
-    ec: null
+    isMounted: false,// 是否挂载
+    isUnmounted: false, // 是否卸载
+    isDeactivated: false,// 是否激活
+    bc: null,// 生命周期，before create
+    c: null,   // 生命周期，created
+    bm: null,// 生命周期，before mount
+    m: null,// 生命周期，mounted
+    bu: null,// 生命周期，before update
+    u: null,// 生命周期，updated
+    um: null,// 生命周期，unmounted
+    bum: null,// 生命周期，before unmount
+    da: null,// 生命周期, deactivated
+    a: null,// 生命周期 activated
+    rtg: null,// 生命周期 render triggered
+    rtc: null,// 生命周期 render tracked
+    ec: null// 生命周期 error captured
   }
   if (__DEV__) {
     instance.ctx = createRenderContext(instance)
   } else {
-    instance.ctx = { _: instance }
+    instance.ctx = { _: instance }  // 初始化渲染上下文
   }
+  // 初始化根组件指针
   instance.root = parent ? parent.root : instance
+  // 初始化派发事件方法
   instance.emit = emit.bind(null, instance)
 
   if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
@@ -479,25 +482,26 @@ export function validateComponentName(name: string, config: AppConfig) {
 }
 
 export let isInSSRComponentSetup = false
-
+//组件实例的设置流程
 export function setupComponent(
   instance: ComponentInternalInstance,
   isSSR = false
 ) {
   isInSSRComponentSetup = isSSR
 
-  const { props, children, shapeFlag } = instance.vnode
+  const { props, children, shapeFlag } = instance.
+  // 判断是否是一个有状态的组件
   const isStateful = shapeFlag & ShapeFlags.STATEFUL_COMPONENT
-  initProps(instance, props, isStateful, isSSR)
-  initSlots(instance, children)
-
+  initProps(instance, props, isStateful, isSSR) // 初始化 props
+  initSlots(instance, children) // 初始化 插槽
+  // 设置有状态的组件实例
   const setupResult = isStateful
     ? setupStatefulComponent(instance, isSSR)
     : undefined
   isInSSRComponentSetup = false
   return setupResult
 }
-
+//创建渲染上下文代理、判断处理 setup 函数和完成组件实例设置
 function setupStatefulComponent(
   instance: ComponentInternalInstance,
   isSSR: boolean
@@ -522,25 +526,32 @@ function setupStatefulComponent(
     }
   }
   // 0. create render proxy property access cache
+  // 创建渲染代理的属性访问缓存
   instance.accessCache = {}
   // 1. create public instance / render proxy
   // also mark it raw so it's never observed
+  // 创建渲染上下文代理
   instance.proxy = new Proxy(instance.ctx, PublicInstanceProxyHandlers)
   if (__DEV__) {
     exposePropsOnRenderContext(instance)
   }
   // 2. call setup()
-  // 执行setup函数的过程， 这里很重要
+  // 判断处理 setup 函数
   const { setup } = Component
   // 这个判断应该是兼容vue2的版本， 不存在setup函数， 直接进行模板编译的过程
   if (setup) {
+    /*
+    主要是三个步骤：创建 setup 函数上下文、执行 setup 函数并获取结果和处理 setup 函数的执行结果
+    */
     // 获取attrs 和插槽slots和emit事件
+    // 如果 setup 函数带参数，则创建一个 setupContext
+    // 首先判断 setup 函数的参数长度，如果大于 1，则创建 setupContext 上下文。
     const setupContext = (instance.setupContext =
       setup.length > 1 ? createSetupContext(instance) : null)
 
     currentInstance = instance
     pauseTracking()
-    // 这里是获取到了setup函数的返回结果
+    // 这里是获取到了setup函数的执行返回结果， callWithErrorHandling就是try catch捕捉函数执行出现错误
     const setupResult = callWithErrorHandling(
       setup,
       instance,
@@ -571,6 +582,7 @@ function setupStatefulComponent(
       handleSetupResult(instance, setupResult, isSSR)
     }
   } else {
+    // 完成组件实例设置
     finishComponentSetup(instance, isSSR)
   }
 }
@@ -582,7 +594,7 @@ export function handleSetupResult(
 ) {
   if (isFunction(setupResult)) {
     // setup returned an inline render function
-    // 如果返回的是函数， 说明是渲染函数
+    // 如果是函数，setup 返回渲染函数
     instance.render = setupResult as InternalRenderFunction
   } else if (isObject(setupResult)) {
     if (__DEV__ && isVNode(setupResult)) {
@@ -596,6 +608,7 @@ export function handleSetupResult(
     if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
       instance.devtoolsRawSetupState = setupResult
     }
+    // 把 setup 返回结果变成响应式
     instance.setupState = proxyRefs(setupResult)
     if (__DEV__) {
       exposeSetupStateOnRenderContext(instance)
@@ -632,17 +645,18 @@ function finishComponentSetup(
   const Component = instance.type as ComponentOptions
 
   // template / render function normalization
+  // 对模板或者渲染函数的标准化
   if (__NODE_JS__ && isSSR) {
     if (Component.render) {
       instance.render = Component.render as InternalRenderFunction
     }
-  } else if (!instance.render) {
+  } else if (!instance.render) { // 不存在渲染函数
     // could be set from setup()
     if (compile && Component.template && !Component.render) {
       if (__DEV__) {
         startMeasure(instance, `compile`)
       }
-      // 将render函数挂载到Component上供渲染时调用
+      //运行时编译 将render函数挂载到Component上供渲染时调用
       Component.render = compile(Component.template, {
         isCustomElement: instance.appContext.config.isCustomElement,
         delimiters: Component.delimiters
@@ -658,6 +672,7 @@ function finishComponentSetup(
     // proxy used needs a different `has` handler which is more performant and
     // also only allows a whitelist of globals to fallthrough.
     if (instance.render._rc) {
+      // 对于使用 with 块的运行时编译的渲染函数，使用新的渲染上下文的代理
       instance.withProxy = new Proxy(
         instance.ctx,
         RuntimeCompiledPublicInstanceProxyHandlers
@@ -666,6 +681,7 @@ function finishComponentSetup(
   }
 
   // support for 2.x options
+  // 兼容 Vue.js 2.x Options API
   if (__FEATURE_OPTIONS_API__) {
     currentInstance = instance
     applyOptions(instance, Component)
@@ -676,6 +692,7 @@ function finishComponentSetup(
   if (__DEV__ && !Component.render && instance.render === NOOP) {
     /* istanbul ignore if */
     if (!compile && Component.template) {
+      // 只编写了 template 但使用了 runtime-only 的版本
       warn(
         `Component provided template option but ` +
         `runtime compilation is not supported in this build of Vue.` +
@@ -688,6 +705,7 @@ function finishComponentSetup(
               : ``) /* should not happen */
       )
     } else {
+      // 既没有写 render 函数，也没有写 template 模板
       warn(`Component is missing template or render function.`)
     }
   }
@@ -709,7 +727,7 @@ const attrHandlers: ProxyHandler<Data> = {
     return false
   }
 }
-// 返回组件的attrs slots 和事件emit
+// 创建 setupContext环境上下文 返回组件的attrs slots 和事件emit
 function createSetupContext(instance: ComponentInternalInstance): SetupContext {
   if (__DEV__) {
     // We use getters in dev in case libs like test-utils overwrite instance
