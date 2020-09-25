@@ -25,17 +25,18 @@ export interface SchedulerJob {
 
 export type SchedulerCb = Function & { id?: number }
 export type SchedulerCbs = SchedulerCb | SchedulerCb[]
-
+// 异步任务队列是否正在执行 
 let isFlushing = false
+// 异步任务队列是否等待执行 
 let isFlushPending = false
-
+// 异步任务队列 
 const queue: (SchedulerJob | null)[] = []
 let flushIndex = 0
 
 const pendingPreFlushCbs: SchedulerCb[] = []
 let activePreFlushCbs: SchedulerCb[] | null = null
 let preFlushIndex = 0
-
+// 队列任务执行完后执行的回调函数队列 
 const pendingPostFlushCbs: SchedulerCb[] = []
 let activePostFlushCbs: SchedulerCb[] | null = null
 let postFlushIndex = 0
@@ -52,7 +53,7 @@ export function nextTick(fn?: () => void): Promise<void> {
   const p = currentFlushPromise || resolvedPromise
   return fn ? p.then(fn) : p
 }
-
+// 将任务队列添加到任务队列数组最后
 export function queueJob(job: SchedulerJob) {
   // the dedupe search uses the startIndex argument of Array.includes()
   // by default the search index includes the current job that is being run
@@ -72,7 +73,8 @@ export function queueJob(job: SchedulerJob) {
     queueFlush()
   }
 }
-
+// 在 queueFlush 首次执行时，isFlushing 和 isFlushPending 都是 false，此时会把 
+// isFlushPending 设置为 true。
 function queueFlush() {
   if (!isFlushing && !isFlushPending) {
     isFlushPending = true
@@ -107,6 +109,7 @@ function queueCb(
     // if cb is an array, it is a component lifecycle hook which can only be
     // triggered by a job, which is already deduped in the main queue, so
     // we can skip duplicate check here to improve perf
+    // 如果是数组，把它拍平成一维 
     pendingQueue.push(...cb)
   }
   queueFlush()
@@ -115,7 +118,7 @@ function queueCb(
 export function queuePreFlushCb(cb: SchedulerCb) {
   queueCb(cb, activePreFlushCbs, pendingPreFlushCbs, preFlushIndex)
 }
-
+// 将异步队列回掉函数添加到postFlushCbs 中
 export function queuePostFlushCb(cb: SchedulerCbs) {
   queueCb(cb, activePostFlushCbs, pendingPostFlushCbs, postFlushIndex)
 }
@@ -186,6 +189,7 @@ const getId = (job: SchedulerJob | SchedulerCb) =>
   job.id == null ? Infinity : job.id
 
 function flushJobs(seen?: CountMap) {
+  // 把 isFlushPending 重置为 false，把 isFlushing 设置为 true 来表示正在执行异步任务队列。
   isFlushPending = false
   isFlushing = true
   if (__DEV__) {
@@ -203,9 +207,17 @@ function flushJobs(seen?: CountMap) {
   //    its update can be skipped.
   // Jobs can never be null before flush starts, since they are only invalidated
   // during execution of another flushed job.
+  // 组件的更新是先父后子 
+  // 如果一个组件在父组件更新过程中卸载，它自身的更新应该被跳过 
+  // 1.我们创建组件的过程是由父到子，所以创建组件副作用渲染函数也是先父后子，
+  // 父组件的副作用渲染函数的 effect id 是小于子组件的
+  // 所以为了保证先更新父组再更新子组件，要对 queue 做从小到大的排序
+  // 2.如果一个组件在父组件更新过程中被卸载，它自身的更新应该被跳过。
+  // 所以也应该要保证先更新父组件再更新子组件，要对 queue 做从小到大的排序
   queue.sort((a, b) => getId(a!) - getId(b!))
 
   try {
+    // 执行
     for (flushIndex = 0; flushIndex < queue.length; flushIndex++) {
       const job = queue[flushIndex]
       if (job) {
@@ -218,19 +230,27 @@ function flushJobs(seen?: CountMap) {
   } finally {
     flushIndex = 0
     queue.length = 0
-
+    // 遍历完 queue 后，又会进一步执行 flushPostFlushCbs 
+    // 方法去遍历执行所有推入到 postFlushCbs 的回调函数
     flushPostFlushCbs(seen)
-
+    // 遍历完 postFlushCbs 后，会重置 isFlushing 为 false，因为一些 postFlushCb 
+    // 执行过程中可能会再次添加异步任务，所以需要继续判断如果 queue 或者 postFlushCbs 队列中还存在任务，
+    // 则递归执行 flushJobs 把它们都执行完毕。
     isFlushing = false
     currentFlushPromise = null
     // some postFlushCb queued jobs!
     // keep flushing until it drains.
+    // 一些 postFlushCb 执行过程中会再次添加异步任务，递归 flushJobs 会把它们都执行完毕
     if (queue.length || pendingPostFlushCbs.length) {
       flushJobs(seen)
     }
   }
 }
-
+// 我们知道 flushJobs 一开始便创建了 seen，它是一个 Map 对象，
+// 然后在 checkRecursiveUpdates 的时候会把任务添加到 seen 中，记录引用计数 count，初始值为 1，
+// 如果 postFlushCbs 再次添加了相同的任务，则引用计数 count 加 1，如果 count 大于我们定义的限制 100 ，
+// 则说明一直在添加这个相同的任务并超过了 100 次。那么，Vue.js 会抛出这个错误，因为在正常的使用中，
+// 不应该出现这种情况，而我们上述的错误示例就会触发这种报错逻辑。
 function checkRecursiveUpdates(seen: CountMap, fn: SchedulerJob | SchedulerCb) {
   if (!seen.has(fn)) {
     seen.set(fn, 1)

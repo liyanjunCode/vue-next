@@ -3,7 +3,7 @@ import { currentInstance } from './component'
 import { currentRenderingInstance } from './componentRenderUtils'
 import { warn } from './warning'
 
-export interface InjectionKey<T> extends Symbol {}
+export interface InjectionKey<T> extends Symbol { }
 
 export function provide<T>(key: InjectionKey<T> | string, value: T) {
   if (!currentInstance) {
@@ -19,10 +19,14 @@ export function provide<T>(key: InjectionKey<T> | string, value: T) {
     // parent and let the prototype chain do the work.
     const parentProvides =
       currentInstance.parent && currentInstance.parent.provides
-    if (parentProvides === provides) {
+    // 因为在组件初始化时，如果当前组件存在父组件就把当前组件的provides赋值为父组件的provides
+    // 所以这里可以判断是否是同一个内存地址判断相等
+    if (parentProvides === provides) {// 只会在第一次在当前组件内使用provide才会相等
+      // 创建一个负组件provides的原型链， 当前组件provides中不存在的key会去父组件中的provides查找
       provides = currentInstance.provides = Object.create(parentProvides)
     }
     // TS doesn't allow symbol as index type
+    // 当前组件注册的provides赋值
     provides[key as string] = value
   }
 }

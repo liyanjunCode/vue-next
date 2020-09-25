@@ -108,8 +108,9 @@ export function advancePositionWithMutation(
   let linesCount = 0
   let lastNewLinePos = -1
   for (let i = 0; i < numberOfCharacters; i++) {
+    // 为10的码是换行符（↵）
     if (source.charCodeAt(i) === 10 /* newline char code */) {
-      linesCount++
+      linesCount++ //行增加
       lastNewLinePos = i
     }
   }
@@ -181,7 +182,7 @@ export function hasDynamicKeyVBind(node: ElementNode): boolean {
       p.type === NodeTypes.DIRECTIVE &&
       p.name === 'bind' &&
       (!p.arg || // v-bind="obj"
-      p.arg.type !== NodeTypes.SIMPLE_EXPRESSION || // v-bind:[_ctx.foo]
+        p.arg.type !== NodeTypes.SIMPLE_EXPRESSION || // v-bind:[_ctx.foo]
         !p.arg.isStatic) // v-bind:[foo]
   )
 }

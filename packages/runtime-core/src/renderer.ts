@@ -263,7 +263,8 @@ export const enum MoveType {
 const prodEffectOptions = {
   scheduler: queueJob
 }
-
+// onRenderTracked 和 onRenderTriggered 注册的钩子函数，
+// 是在副作用渲染函数的 onTrack 和 onTrigger 对应的函数中执行的
 function createDevEffectOptions(
   instance: ComponentInternalInstance
 ): ReactiveEffectOptions {
@@ -1374,7 +1375,7 @@ function baseCreateRenderer(
         const { el, props } = initialVNode
         const { bm, m, parent } = instance
         // beforeMount hook
-        // beforeMount钩子函数， 这个我估计是vue2的写法
+        // 执行 beforemount 钩子函数 
         if (bm) {
           invokeArrayFns(bm)
         }
@@ -1388,6 +1389,7 @@ function baseCreateRenderer(
         if (__DEV__) {
           startMeasure(instance, `render`)
         }
+        // 渲染组件生成子树 vnode 
         const subTree = (instance.subTree = renderComponentRoot(instance))
         if (__DEV__) {
           endMeasure(instance, `render`)
@@ -1411,7 +1413,7 @@ function baseCreateRenderer(
           if (__DEV__) {
             startMeasure(instance, `patch`)
           }
-          // 把子树 vnode 挂载到 container 中
+          // 把子树 vnode 挂载到 container 中（挂载组件）
           patch(
             null,
             subTree,
@@ -1424,10 +1426,14 @@ function baseCreateRenderer(
           if (__DEV__) {
             endMeasure(instance, `patch`)
           }
+          // 保留渲染生成的子树根 DOM 节点 
           initialVNode.el = subTree.el
         }
         // mounted hook
+        // 执行 mounted 钩子函数 
         if (m) {
+          // 把 mounted 钩子函数推入 postFlushCbs 中
+          // 然后在整个应用 render 完毕后，同步执行 flushPostFlushCbs 函数调用 mounted 钩子函数。
           queuePostRenderEffect(m, parentSuspense)
         }
         // onVnodeMounted
@@ -1447,19 +1453,22 @@ function baseCreateRenderer(
           queuePostRenderEffect(a, parentSuspense)
         }
         instance.isMounted = true
-      } else {
+      } else {//更新组件
         // 挂在过de，只是进行组件的重新比对渲染
         // updateComponentupdateComponent
         // This is triggered by mutation of component's own state (next: null)
         // OR parent calling processComponent (next: VNode)
+        // 获取组件实例上通过 onBeforeUpdate 钩子函数和 onUpdated 注册的钩子函数
         let { next, bu, u, parent, vnode } = instance
         let originNext = next
         let vnodeHook: VNodeHook | null | undefined
         if (__DEV__) {
           pushWarningContext(next || instance.vnode)
         }
-        // 首先是更新组件 vnode 节点，判断组件实例中是否有新的组件 vnode（用 next 表示），有则更新组件 vnode，没有 next 指向之前的组件 vnode
+        // 首先是更新组件 vnode 节点，判断组件实例中是否有新的组件 vnode（用 next 表示），
+        // 有则更新组件 vnode，没有 next 指向之前的组件 vnode
         if (next) {
+          // 更新组件 vnode 节点信息 
           updateComponentPreRender(instance, next, optimized)
         } else {
           next = vnode
@@ -1467,6 +1476,7 @@ function baseCreateRenderer(
         next.el = vnode.el
 
         // beforeUpdate hook
+        // 执行 beforeUpdate 钩子函数 
         if (bu) {
           invokeArrayFns(bu)
         }
@@ -1499,8 +1509,10 @@ function baseCreateRenderer(
           prevTree,
           nextTree,
           // parent may have changed if it's in a teleport
+          // 如果在 teleport 组件中父节点可能已经改变，所以容器直接找旧树 DOM 元素的父节点 
           hostParentNode(prevTree.el!)!,
           // anchor may have changed if it's in a fragment
+          // 缓存更新后的 DOM 节点 
           getNextHostNode(prevTree),
           instance,
           parentSuspense,
@@ -1518,6 +1530,13 @@ function baseCreateRenderer(
           updateHOCHostEl(instance, nextTree.el)
         }
         // updated hook
+
+        // 执行 updated 钩子函数 
+        //  把 updated 钩子函数推入 postFlushCbs 中在整个应用更新 render 完毕后，
+        // 同步执行 flushPostFlushCbs 函数调用 updated 钩子函数。
+        // 如果要监听数据的改变并执行某些逻辑，最好不要使用 updated 钩子函数而用计算属性或 watcher 取而代之，
+        // 因为任何数据的变化导致的组件更新都会执行 updated 钩子函数
+        // 不要在 updated 钩子函数中更改数据，因为这样会再次触发组件更新，导致无限递归更新 。
         if (u) {
           queuePostRenderEffect(u, parentSuspense)
         }
@@ -2204,7 +2223,8 @@ function baseCreateRenderer(
     }
     hostRemove(end)
   }
-
+  // 组件销毁主要就是清理组件实例上绑定的 effects 副作用函数和注册的副作用渲染函数 
+  // update，以及调用 unmount 销毁子树。
   const unmountComponent = (
     instance: ComponentInternalInstance,
     parentSuspense: SuspenseBoundary | null,
@@ -2216,9 +2236,11 @@ function baseCreateRenderer(
 
     const { bum, effects, update, subTree, um } = instance
     // beforeUnmount hook
+    // 执行 beforeUnmount 钩子函数 
     if (bum) {
       invokeArrayFns(bum)
     }
+    // 清理组件引用的 effects 副作用函数 
     if (effects) {
       for (let i = 0; i < effects.length; i++) {
         stop(effects[i])
@@ -2226,11 +2248,14 @@ function baseCreateRenderer(
     }
     // update may be null if a component is unmounted before its async
     // setup has resolved.
+    // 如果一个异步组件在加载前就销毁了，则不会注册副作用渲染函数 
     if (update) {
       stop(update)
+      // 调用 unmount 销毁子树 
       unmount(subTree, instance, parentSuspense, doRemove)
     }
     // unmounted hook
+    // 执行 unmounted 钩子函数 
     if (um) {
       queuePostRenderEffect(um, parentSuspense)
     }

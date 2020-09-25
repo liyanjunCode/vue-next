@@ -82,6 +82,7 @@ export function baseCompile(
   const [nodeTransforms, directiveTransforms] = getBaseTransformPreset(
     prefixIdentifiers
   )
+  // AST 转换 
   transform(
     ast,
     extend({}, options, {
@@ -97,7 +98,7 @@ export function baseCompile(
       )
     })
   )
-  // 
+  // 生成代码 
   return generate(
     ast,
     extend({}, options, {

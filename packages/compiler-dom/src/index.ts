@@ -42,7 +42,7 @@ export function compile(
   options: CompilerOptions = {}
 ): CodegenResult {
   return baseCompile(
-    template,
+    template,//待编译的模板字符串
     extend({}, parserOptions, options, {
       nodeTransforms: [
         // ignore <script> and <tag>

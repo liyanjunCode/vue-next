@@ -74,6 +74,11 @@ export interface WatchOptions<Immediate = boolean> extends WatchOptionsBase {
 export type WatchStopHandle = () => void
 
 // Simple effect.
+
+// watchEffect API 侦听的是一个普通函数，只要内部访问了响应式对象即可，这个函数并不需要返回响应式对象
+// watchEffect API 没有回调函数，副作用函数的内部响应式对象发生变化后，会再次执行这个副作用函数。
+// watchEffect API 在创建好 watcher 后，会立刻执行它的副作用函数，而 watch API 
+// 需要配置 immediate 为 true，才会立即执行回调函数。
 export function watchEffect(
   effect: WatchEffect,
   options?: WatchOptionsBase
@@ -160,7 +165,8 @@ function doWatch(
       `a reactive object, or an array of these types.`
     )
   }
-
+  // source 可以是 getter 函数，也可以是响应式对象甚至是响应式对象数组，
+  // 所以我们需要标准化 source，这是标准化 source 的流程
   let getter: () => any
   const isRefSource = isRef(source)
   if (isRefSource) {
@@ -216,6 +222,7 @@ function doWatch(
   }
 
   let cleanup: () => void
+  // 注册无效回调函数 
   const onInvalidate: InvalidateCbRegistrator = (fn: () => void) => {
     cleanup = runner.options.onStop = () => {
       callWithErrorHandling(fn, instance, ErrorCodes.WATCH_CLEANUP)
@@ -236,7 +243,7 @@ function doWatch(
     }
     return NOOP
   }
-
+  // 旧值初始值 
   let oldValue = isArray(source) ? [] : INITIAL_WATCHER_VALUE
   const job: SchedulerJob = () => {
     if (!runner.active) {
@@ -247,12 +254,14 @@ function doWatch(
       const newValue = runner()
       if (deep || isRefSource || hasChanged(newValue, oldValue)) {
         // cleanup before running cb again
+        // 执行清理函数 
         if (cleanup) {
           cleanup()
         }
         callWithAsyncErrorHandling(cb, instance, ErrorCodes.WATCH_CALLBACK, [
           newValue,
           // pass undefined as the old value when it's changed for the first time
+          // 第一次更改时传递旧值为 undefined 
           oldValue === INITIAL_WATCHER_VALUE ? undefined : oldValue,
           onInvalidate
         ])
@@ -269,6 +278,7 @@ function doWatch(
   job.allowRecurse = !!cb
 
   let scheduler: (job: () => any) => void
+  // 同步 
   if (flush === 'sync') {
     scheduler = job
   } else if (flush === 'pre') {
@@ -276,14 +286,17 @@ function doWatch(
     job.id = -1
     scheduler = () => {
       if (!instance || instance.isMounted) {
+        // 进入异步队列，组件更新前执行 
         queuePreFlushCb(job)
       } else {
         // with 'pre' option, the first call must happen before
         // the component is mounted so it is called synchronously.
+        // 如果组件还没挂载，则同步执行确保在组件挂载前 
         job()
       }
     }
   } else {
+    // 进入异步队列，组件更新后执行 
     scheduler = () => queuePostRenderEffect(job, instance && instance.suspense)
   }
 
@@ -293,23 +306,27 @@ function doWatch(
     onTrigger,
     scheduler
   })
-
+  // 在组件实例中记录这个 effect 
   recordInstanceBoundEffect(runner)
 
   // initial run
+  // 初次执行 
   if (cb) {
     if (immediate) {
       job()
     } else {
+      // 求旧值 
       oldValue = runner()
     }
   } else {
+    // 没有 cb 的情况 
     runner()
   }
 
   return () => {
     stop(runner)
     if (instance) {
+      // 移除组件 effects 对这个 runner 的引用 
       remove(instance.effects!, runner)
     }
   }

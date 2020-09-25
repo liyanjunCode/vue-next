@@ -174,6 +174,7 @@ export function track(target: object, type: TrackOpTypes, key: unknown) {
     // 当前激活的 effect 收集 dep 集合作为依赖
     activeEffect.deps.push(dep)
     if (__DEV__ && activeEffect.options.onTrack) {
+      // 执行 onTrack 函数
       activeEffect.options.onTrack({
         effect: activeEffect,
         target,
@@ -259,6 +260,7 @@ export function trigger(
 
   const run = (effect: ReactiveEffect) => {
     if (__DEV__ && effect.options.onTrigger) {
+      // 执行 onTrigger 
       effect.options.onTrigger({
         effect,
         target,

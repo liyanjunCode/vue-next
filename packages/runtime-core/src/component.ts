@@ -392,6 +392,7 @@ export function createComponentInstance(
     proxy: null, // 渲染上下文代理
     withProxy: null, // 带有 with 区块的渲染上下文代理
     effects: null, // 响应式相关对象
+    // 让组件实例的provides对象指向父组件实例provides
     provides: parent ? parent.provides : Object.create(appContext.provides),// 依赖注入相关
     accessCache: null!, // 渲染代理的属性访问缓存
     renderCache: [], // 渲染缓存
