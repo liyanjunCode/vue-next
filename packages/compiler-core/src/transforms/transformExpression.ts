@@ -30,18 +30,22 @@ import { parse } from '@babel/parser'
 import { walk } from 'estree-walker'
 
 const isLiteralWhitelisted = /*#__PURE__*/ makeMap('true,false,null,this')
-
+// 表达式转化函数
+//只有在 Node.js 环境下的编译或者是 Web 端的非生产环境下才会执行 transformExpression
 export const transformExpression: NodeTransform = (node, context) => {
   if (node.type === NodeTypes.INTERPOLATION) {
+    // 处理插值中的动态表达式
     node.content = processExpression(
       node.content as SimpleExpressionNode,
       context
     )
   } else if (node.type === NodeTypes.ELEMENT) {
     // handle directives on element
+    // 处理元素指令中的动态表达式
     for (let i = 0; i < node.props.length; i++) {
       const dir = node.props[i]
       // do not process for v-on & v-for since they are special handled
+      // v-on 和 v-for 不处理，因为它们都有各自的处理逻辑
       if (dir.type === NodeTypes.DIRECTIVE && dir.name !== 'for') {
         const exp = dir.exp
         const arg = dir.arg
@@ -154,76 +158,76 @@ export function processExpression(
   const isDuplicate = (node: Node & PrefixMeta): boolean =>
     ids.some(id => id.start === node.start)
 
-  // walk the AST and look for identifiers that need to be prefixed.
-  ;(walk as any)(ast, {
-    enter(node: Node & PrefixMeta, parent: Node) {
-      if (node.type === 'Identifier') {
-        if (!isDuplicate(node)) {
-          const needPrefix = shouldPrefix(node, parent)
-          if (!knownIds[node.name] && needPrefix) {
-            if (isPropertyShorthand(node, parent)) {
-              // property shorthand like { foo }, we need to add the key since we
-              // rewrite the value
-              node.prefix = `${node.name}: `
-            }
-            node.name = prefix(node.name)
-            ids.push(node)
-          } else if (!isStaticPropertyKey(node, parent)) {
-            // The identifier is considered constant unless it's pointing to a
-            // scope variable (a v-for alias, or a v-slot prop)
-            if (!(needPrefix && knownIds[node.name]) && !bailConstant) {
-              node.isConstant = true
-            }
-            // also generate sub-expressions for other identifiers for better
-            // source map support. (except for property keys which are static)
-            ids.push(node)
-          }
-        }
-      } else if (isFunction(node)) {
-        // walk function expressions and add its arguments to known identifiers
-        // so that we don't prefix them
-        node.params.forEach(p =>
-          (walk as any)(p, {
-            enter(child: Node, parent: Node) {
-              if (
-                child.type === 'Identifier' &&
-                // do not record as scope variable if is a destructured key
-                !isStaticPropertyKey(child, parent) &&
-                // do not record if this is a default value
-                // assignment of a destructured variable
-                !(
-                  parent &&
-                  parent.type === 'AssignmentPattern' &&
-                  parent.right === child
-                )
-              ) {
-                const { name } = child
-                if (node.scopeIds && node.scopeIds.has(name)) {
-                  return
-                }
-                if (name in knownIds) {
-                  knownIds[name]++
-                } else {
-                  knownIds[name] = 1
-                }
-                ;(node.scopeIds || (node.scopeIds = new Set())).add(name)
+    // walk the AST and look for identifiers that need to be prefixed.
+    ; (walk as any)(ast, {
+      enter(node: Node & PrefixMeta, parent: Node) {
+        if (node.type === 'Identifier') {
+          if (!isDuplicate(node)) {
+            const needPrefix = shouldPrefix(node, parent)
+            if (!knownIds[node.name] && needPrefix) {
+              if (isPropertyShorthand(node, parent)) {
+                // property shorthand like { foo }, we need to add the key since we
+                // rewrite the value
+                node.prefix = `${node.name}: `
               }
+              node.name = prefix(node.name)
+              ids.push(node)
+            } else if (!isStaticPropertyKey(node, parent)) {
+              // The identifier is considered constant unless it's pointing to a
+              // scope variable (a v-for alias, or a v-slot prop)
+              if (!(needPrefix && knownIds[node.name]) && !bailConstant) {
+                node.isConstant = true
+              }
+              // also generate sub-expressions for other identifiers for better
+              // source map support. (except for property keys which are static)
+              ids.push(node)
+            }
+          }
+        } else if (isFunction(node)) {
+          // walk function expressions and add its arguments to known identifiers
+          // so that we don't prefix them
+          node.params.forEach(p =>
+            (walk as any)(p, {
+              enter(child: Node, parent: Node) {
+                if (
+                  child.type === 'Identifier' &&
+                  // do not record as scope variable if is a destructured key
+                  !isStaticPropertyKey(child, parent) &&
+                  // do not record if this is a default value
+                  // assignment of a destructured variable
+                  !(
+                    parent &&
+                    parent.type === 'AssignmentPattern' &&
+                    parent.right === child
+                  )
+                ) {
+                  const { name } = child
+                  if (node.scopeIds && node.scopeIds.has(name)) {
+                    return
+                  }
+                  if (name in knownIds) {
+                    knownIds[name]++
+                  } else {
+                    knownIds[name] = 1
+                  }
+                  ; (node.scopeIds || (node.scopeIds = new Set())).add(name)
+                }
+              }
+            })
+          )
+        }
+      },
+      leave(node: Node & PrefixMeta) {
+        if (node !== ast.body[0].expression && node.scopeIds) {
+          node.scopeIds.forEach((id: string) => {
+            knownIds[id]--
+            if (knownIds[id] === 0) {
+              delete knownIds[id]
             }
           })
-        )
+        }
       }
-    },
-    leave(node: Node & PrefixMeta) {
-      if (node !== ast.body[0].expression && node.scopeIds) {
-        node.scopeIds.forEach((id: string) => {
-          knownIds[id]--
-          if (knownIds[id] === 0) {
-            delete knownIds[id]
-          }
-        })
-      }
-    }
-  })
+    })
 
   // We break up the compound expression into an array of strings and sub
   // expressions (for identifiers that have been prefixed). In codegen, if

@@ -40,7 +40,7 @@ export function getBaseTransformPreset(
           ? [transformExpression]
           : []),
       transformSlotOutlet,
-      transformElement,
+      transformElement,  //元素节点转换函数实现
       trackSlotScopes,
       transformText
     ],
@@ -79,6 +79,7 @@ export function baseCompile(
   }
   //baseParse 解析模板， 生成抽象ast树
   const ast = isString(template) ? baseParse(template, options) : template
+  // 获取节点和指令转换的方法
   const [nodeTransforms, directiveTransforms] = getBaseTransformPreset(
     prefixIdentifiers
   )

@@ -128,6 +128,7 @@ export function createTransformContext(
 ): TransformContext {
   const context: TransformContext = {
     // options
+    // 配置
     prefixIdentifiers,
     hoistStatic,
     cacheHandlers,
@@ -144,6 +145,7 @@ export function createTransformContext(
     onError,
 
     // state
+    // 状态数据
     root,
     helpers: new Set(),
     components: new Set(),
@@ -199,10 +201,12 @@ export function createTransformContext(
       }
       if (!node || node === context.currentNode) {
         // current node removed
+        // 移除当前节点
         context.currentNode = null
         context.onNodeRemoved()
       } else {
         // sibling node removed
+        // 移除兄弟节点
         if (context.childIndex > removalIndex) {
           context.childIndex--
           context.onNodeRemoved()
@@ -210,7 +214,7 @@ export function createTransformContext(
       }
       context.parent!.children.splice(removalIndex, 1)
     },
-    onNodeRemoved: () => {},
+    onNodeRemoved: () => { },
     addIdentifiers(exp) {
       // identifier tracking only happens in non-browser builds.
       if (!__BROWSER__) {
@@ -264,9 +268,11 @@ export function createTransformContext(
 
   return context
 }
-
+// AST转换
 export function transform(root: RootNode, options: TransformOptions) {
+  // 创建 transform 上下文
   const context = createTransformContext(root, options)
+  // 转换的核心
   traverseNode(root, context)
   if (options.hoistStatic) {
     hoistStatic(root, context)
@@ -313,8 +319,7 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
       helper(FRAGMENT),
       undefined,
       root.children,
-      `${PatchFlags.STABLE_FRAGMENT} /* ${
-        PatchFlagNames[PatchFlags.STABLE_FRAGMENT]
+      `${PatchFlags.STABLE_FRAGMENT} /* ${PatchFlagNames[PatchFlags.STABLE_FRAGMENT]
       } */`,
       undefined,
       undefined,
@@ -349,9 +354,12 @@ export function traverseNode(
 ) {
   context.currentNode = node
   // apply transform plugins
+  // 节点转换函数
   const { nodeTransforms } = context
   const exitFns = []
   for (let i = 0; i < nodeTransforms.length; i++) {
+    // 有些转换函数会设计一个退出函数，在处理完子节点后执行
+    //只有元素节点和组件节点才会有退出函数，退出函数依赖于VNodeCall
     const onExit = nodeTransforms[i](node, context)
     if (onExit) {
       if (isArray(onExit)) {
@@ -362,9 +370,11 @@ export function traverseNode(
     }
     if (!context.currentNode) {
       // node was removed
+      // 节点被移除
       return
     } else {
       // node may have been replaced
+      // 因为在转换的过程中节点可能被替换，恢复到之前的节点
       node = context.currentNode
     }
   }
@@ -374,17 +384,20 @@ export function traverseNode(
       if (!context.ssr) {
         // inject import for the Comment symbol, which is needed for creating
         // comment nodes with `createVNode`
+        // 需要导入 createComment 辅助函数
         context.helper(CREATE_COMMENT)
       }
       break
     case NodeTypes.INTERPOLATION:
       // no need to traverse, but we need to inject toString helper
+      // 需要导入 toString 辅助函数
       if (!context.ssr) {
         context.helper(TO_DISPLAY_STRING)
       }
       break
 
     // for container types, further traverse downwards
+    // 递归遍历每个分支节点
     case NodeTypes.IF:
       for (let i = 0; i < node.branches.length; i++) {
         traverseNode(node.branches[i], context)
@@ -394,11 +407,13 @@ export function traverseNode(
     case NodeTypes.FOR:
     case NodeTypes.ELEMENT:
     case NodeTypes.ROOT:
+      // 遍历子节点
       traverseChildren(node, context)
       break
   }
 
   // exit transforms
+  // 执行转换函数返回的退出函数
   context.currentNode = node
   let i = exitFns.length
   while (i--) {

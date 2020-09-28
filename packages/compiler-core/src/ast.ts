@@ -130,28 +130,28 @@ export interface BaseElementNode extends Node {
 export interface PlainElementNode extends BaseElementNode {
   tagType: ElementTypes.ELEMENT
   codegenNode:
-    | VNodeCall
-    | SimpleExpressionNode // when hoisted
-    | CacheExpression // when cached by v-once
-    | undefined
+  | VNodeCall
+  | SimpleExpressionNode // when hoisted
+  | CacheExpression // when cached by v-once
+  | undefined
   ssrCodegenNode?: TemplateLiteral
 }
 
 export interface ComponentNode extends BaseElementNode {
   tagType: ElementTypes.COMPONENT
   codegenNode:
-    | VNodeCall
-    | CacheExpression // when cached by v-once
-    | undefined
+  | VNodeCall
+  | CacheExpression // when cached by v-once
+  | undefined
   ssrCodegenNode?: CallExpression
 }
 
 export interface SlotOutletNode extends BaseElementNode {
   tagType: ElementTypes.SLOT
   codegenNode:
-    | RenderSlotCall
-    | CacheExpression // when cached by v-once
-    | undefined
+  | RenderSlotCall
+  | CacheExpression // when cached by v-once
+  | undefined
   ssrCodegenNode?: CallExpression
 }
 
@@ -273,11 +273,11 @@ export interface VNodeCall extends Node {
   tag: string | symbol | CallExpression
   props: PropsExpression | undefined
   children:
-    | TemplateChildNode[] // multiple children
-    | TemplateTextChildNode // single text child
-    | SlotsExpression // component slots
-    | ForRenderListExpression // v-for fragment call
-    | undefined
+  | TemplateChildNode[] // multiple children
+  | TemplateTextChildNode // single text child
+  | SlotsExpression // component slots
+  | ForRenderListExpression // v-for fragment call
+  | undefined
   patchFlag: string | undefined
   dynamicProps: string | undefined
   directives: DirectiveArguments | undefined
@@ -410,24 +410,24 @@ export interface DirectiveArguments extends ArrayExpression {
 
 export interface DirectiveArgumentNode extends ArrayExpression {
   elements:  // dir, exp, arg, modifiers
-    | [string]
-    | [string, ExpressionNode]
-    | [string, ExpressionNode, ExpressionNode]
-    | [string, ExpressionNode, ExpressionNode, ObjectExpression]
+  | [string]
+  | [string, ExpressionNode]
+  | [string, ExpressionNode, ExpressionNode]
+  | [string, ExpressionNode, ExpressionNode, ObjectExpression]
 }
 
 // renderSlot(...)
 export interface RenderSlotCall extends CallExpression {
   callee: typeof RENDER_SLOT
   arguments:  // $slots, name, props, fallback
-    | [string, string | ExpressionNode]
-    | [string, string | ExpressionNode, PropsExpression]
-    | [
-        string,
-        string | ExpressionNode,
-        PropsExpression | '{}',
-        TemplateChildNode[]
-      ]
+  | [string, string | ExpressionNode]
+  | [string, string | ExpressionNode, PropsExpression]
+  | [
+    string,
+    string | ExpressionNode,
+    PropsExpression | '{}',
+    TemplateChildNode[]
+  ]
 }
 
 export type SlotsExpression = SlotsObjectExpression | DynamicSlotsExpression
@@ -534,7 +534,7 @@ export function createRoot(
     loc
   }
 }
-
+// 创建了 VNodeCall 接口
 export function createVNodeCall(
   context: TransformContext | null,
   tag: VNodeCall['tag'],
