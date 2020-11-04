@@ -286,7 +286,7 @@ const KeepAliveImpl = {
 // also to avoid inline import() in generated d.ts files
 export const KeepAlive = (KeepAliveImpl as any) as {
   __isKeepAlive: true
-  new (): {
+  new(): {
     $props: VNodeProps & KeepAliveProps
   }
 }

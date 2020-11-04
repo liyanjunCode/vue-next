@@ -108,13 +108,9 @@ export type CreateAppFunction<HostElement> = (
   rootComponent: Component,
   rootProps?: Data | null
 ) => App<HostElement>
-<<<<<<< HEAD
-// createApp方法最终调用的方法
-=======
 
 let uid = 0
 
->>>>>>> upstream/master
 export function createAppAPI<HostElement>(
   render: RootRenderFunction,
   hydrate?: RootHydrateFunction
@@ -184,13 +180,8 @@ export function createAppAPI<HostElement>(
         }
         return app
       },
-<<<<<<< HEAD
-      // 全局组件，相当于vue2的Vue.component
-      component(name: string, component?: PublicAPIComponent): any {
-=======
 
       component(name: string, component?: Component): any {
->>>>>>> upstream/master
         if (__DEV__) {
           validateComponentName(name, context.config)
         }
@@ -223,15 +214,10 @@ export function createAppAPI<HostElement>(
       mount(rootContainer: HostElement, isHydrate?: boolean): any {
         // isMounted 为false时才挂在， 如果为true就已经挂载过了， 只允许挂载一次
         if (!isMounted) {
-<<<<<<< HEAD
-          // rootComponent webpack处理后的组件，根组件, 这里是创建虚拟dom
-          const vnode = createVNode(rootComponent as Component, rootProps)
-=======
           const vnode = createVNode(
             rootComponent as ConcreteComponent,
             rootProps
           )
->>>>>>> upstream/master
           // store app context on the root VNode.
           // this will be set on the root instance on initial mount.
           vnode.appContext = context

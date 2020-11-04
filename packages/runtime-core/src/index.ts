@@ -179,12 +179,7 @@ export {
 export {
   ComponentPublicInstance,
   ComponentCustomProperties
-<<<<<<< HEAD
-} from './componentProxy'
-
-=======
 } from './componentPublicInstance'
->>>>>>> upstream/master
 export {
   Renderer, //  ts接口
   RendererNode,
