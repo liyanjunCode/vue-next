@@ -90,8 +90,13 @@ function createReactiveEffect<T = any>(
       return options.scheduler ? undefined : fn()
     }
     if (!effectStack.includes(effect)) {
-      // 清空 effect 引用的依赖， 防止在引用的effect的状态在不使用时造成组件重新渲染（状态随后没在界面中使用，但
-      // 使用时收集了依赖， 点击功能可能改变了此状态的值， 造成了通知依赖重新渲染）
+      /* 
+          注：数据一开始在视图中使用了， 收集了依赖， 因为状态的切换， 
+          数据在视图中已经不需要了，当此数据改变时，会触发原来收集的依赖进行更新， 
+          导致界面被重新渲染, 正常逻辑是此数据改变， 现在不需要重新渲染界面
+          所以在effect执行前， 先通过双向绑定，清除相应的依赖， 当fn执行时
+          再次收集现在状态所需要的依赖， 避免造成不必要的界面重新渲染，影响性能
+      */
       cleanup(effect)
       try {
         // 开启全局 shouldTrack，允许依赖收集
