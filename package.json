@@ -6,7 +6,7 @@
   ],
   "scripts": {
     "dev": "node scripts/dev.js",
-    "build": "node scripts/build.js",
+    "build": "node scripts/build.js --sourceMap",
     "size": "node scripts/build.js vue runtime-dom size-check -p -f global",
     "lint": "eslint --ext .ts packages/*/src/**",
     "format": "prettier --write --parser typescript \"packages/**/*.ts?(x)\"",
@@ -18,8 +18,7 @@
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
     "dev-compiler": "npm-run-all --parallel \"dev template-explorer\" serve",
     "serve": "serve",
-    "open": "open http://localhost:5000/packages/template-explorer/local.html",
-    "preinstall": "node ./scripts/checkYarn.js"
+    "open": "open http://localhost:5000/packages/template-explorer/local.html"
   },
   "types": "test-dts/index.d.ts",
   "tsd": {

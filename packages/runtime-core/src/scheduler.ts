@@ -32,11 +32,11 @@ let isFlushPending = false
 // 异步任务队列 
 const queue: (SchedulerJob | null)[] = []
 let flushIndex = 0
-
+// 异步任务队列 任务执行前执行的回调函数队列 
 const pendingPreFlushCbs: SchedulerCb[] = []
 let activePreFlushCbs: SchedulerCb[] | null = null
 let preFlushIndex = 0
-// 队列任务执行完后执行的回调函数队列 
+// 异步任务队列 任务执行完后执行的回调函数队列 
 const pendingPostFlushCbs: SchedulerCb[] = []
 let activePostFlushCbs: SchedulerCb[] | null = null
 let postFlushIndex = 0
