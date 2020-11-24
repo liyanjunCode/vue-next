@@ -331,7 +331,7 @@ function parseComment(context: ParserContext): CommentNode {
     advanceBy(context, context.source.length)
     emitError(context, ErrorCodes.EOF_IN_COMMENT)
   } else {
-    //--> 正确的结束节点三位， 小于三位报错
+    //--> 正确的结束节点前应该有很多字符， 小于等于三位报错
     if (match.index <= 3) {
       emitError(context, ErrorCodes.ABRUPT_CLOSING_OF_EMPTY_COMMENT)
     }
@@ -348,6 +348,7 @@ function parseComment(context: ParserContext): CommentNode {
     let prevIndex = 1,
       nestedIndex = 0
     // 判断嵌套注释符的情况，存在即报错 
+    // <!--sadsad<!--sgfdsfasdsadsagfh
     while ((nestedIndex = s.indexOf('<!--', prevIndex)) !== -1) {
       advanceBy(context, nestedIndex - prevIndex + 1)
       if (nestedIndex + 4 < s.length) {
