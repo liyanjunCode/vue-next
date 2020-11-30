@@ -26,7 +26,12 @@ import { warn } from './warning'
 import { ErrorCodes, callWithErrorHandling } from './errorHandling'
 import { AppContext, createAppContext, AppConfig } from './apiCreateApp'
 import { Directive, validateDirectiveName } from './directives'
-import { applyOptions, ComponentOptions } from './componentOptions'
+import {
+  applyOptions,
+  ComponentOptions,
+  ComputedOptions,
+  MethodOptions
+} from './componentOptions'
 import {
   EmitsOptions,
   ObjectEmitsOptions,
@@ -61,7 +66,7 @@ export type Data = Record<string, unknown>
 export interface ComponentCustomProps { }
 
 /**
- * Default allowed non-declared props on ocmponent in TSX
+ * Default allowed non-declared props on component in TSX
  */
 export interface AllowedComponentProps {
   class?: unknown
@@ -74,11 +79,11 @@ export interface ComponentInternalOptions {
   /**
    * @internal
    */
-  __props?: Record<number, NormalizedPropsOptions>
+  __props?: NormalizedPropsOptions
   /**
    * @internal
    */
-  __emits?: Record<number, ObjectEmitsOptions | null>
+  __emits?: ObjectEmitsOptions | null
   /**
    * @internal
    */
@@ -100,7 +105,7 @@ export interface ComponentInternalOptions {
 export interface FunctionalComponent<P = {}, E extends EmitsOptions = {}>
   extends ComponentInternalOptions {
   // use of any here is intentional so it can be a valid JSX Element constructor
-  (props: P, ctx: SetupContext<E>): any
+  (props: P, ctx: Omit<SetupContext<E>, 'expose'>): any
   props?: ComponentPropsOptions<P>
   emits?: E | (keyof E)[]
   inheritAttrs?: boolean
@@ -118,13 +123,29 @@ export interface ClassComponent {
  * values, e.g. checking if its a function or not. This is mostly for internal
  * implementation code.
  */
-export type ConcreteComponent = ComponentOptions | FunctionalComponent<any, any>
+export type ConcreteComponent<
+  Props = {},
+  RawBindings = any,
+  D = any,
+  C extends ComputedOptions = ComputedOptions,
+  M extends MethodOptions = MethodOptions
+  > =
+  | ComponentOptions<Props, RawBindings, D, C, M>
+  | FunctionalComponent<Props, any>
 
 /**
  * A type used in public APIs where a component type is expected.
  * The constructor type is an artificial type returned by defineComponent().
  */
-export type Component = ConcreteComponent | ComponentPublicInstanceConstructor
+export type Component<
+  Props = any,
+  RawBindings = any,
+  D = any,
+  C extends ComputedOptions = ComputedOptions,
+  M extends MethodOptions = MethodOptions
+  > =
+  | ConcreteComponent<Props, RawBindings, D, C, M>
+  | ComponentPublicInstanceConstructor<Props>
 
 export { ComponentOptions }
 
@@ -150,6 +171,7 @@ export interface SetupContext<E = EmitsOptions> {
   attrs: Data
   slots: Slots
   emit: EmitFn<E>
+  expose: (exposed: Record<string, any>) => void
 }
 
 /**
@@ -201,6 +223,11 @@ export interface ComponentInternalInstance {
    */
   render: InternalRenderFunction | null
   /**
+   * SSR render function
+   * @internal
+   */
+  ssrRender?: Function | null
+  /**
    * Object containing values this component provides for its descendents
    * @internal
    */
@@ -249,6 +276,9 @@ export interface ComponentInternalInstance {
   // main proxy that serves as the public instance (`this`)
   proxy: ComponentPublicInstance | null
 
+  // exposed properties via expose()
+  exposed: Record<string, any> | null
+
   /**
    * alternative proxy used only for runtime-compiled render functions using
    * `with` block
@@ -296,6 +326,11 @@ export interface ComponentInternalInstance {
    * @internal
    */
   suspense: SuspenseBoundary | null
+  /**
+   * suspense pending batch id
+   * @internal
+   */
+  suspenseId: number
   /**
    * @internal
    */
@@ -389,6 +424,7 @@ export function createComponentInstance(
     subTree: null!, // will be set synchronously right after creation // 子节点 vnode
     update: null!, // will be set synchronously right after creation// 带副作用更新函数
     render: null, // 渲染函数
+    exposed: null,
     proxy: null, // 渲染上下文代理
     withProxy: null, // 带有 with 区块的渲染上下文代理
     effects: null, // 响应式相关对象
@@ -421,6 +457,7 @@ export function createComponentInstance(
 
     // suspense related
     suspense,// suspense 相关
+    suspenseId: suspense ? suspense.pendingId : 0,
     asyncDep: null,// suspense 异步依赖
     asyncResolved: false,  // suspense 异步依赖是否都已处理
 
@@ -528,7 +565,7 @@ function setupStatefulComponent(
   }
   // 0. create render proxy property access cache
   // 创建渲染代理的属性访问缓存
-  instance.accessCache = {}
+  instance.accessCache = Object.create(null)
   // 1. create public instance / render proxy
   // also mark it raw so it's never observed
   // 创建渲染上下文代理
@@ -595,8 +632,14 @@ export function handleSetupResult(
 ) {
   if (isFunction(setupResult)) {
     // setup returned an inline render function
-    // 如果是函数，setup 返回渲染函数
-    instance.render = setupResult as InternalRenderFunction
+    if (__NODE_JS__ && (instance.type as ComponentOptions).__ssrInlineRender) {
+      // when the function's name is `ssrRender` (compiled by SFC inline mode),
+      // set it as ssrRender instead.
+      instance.ssrRender = setupResult
+    } else {
+      // 如果是函数，setup 返回渲染函数
+      instance.render = setupResult as InternalRenderFunction
+    }
   } else if (isObject(setupResult)) {
     if (__DEV__ && isVNode(setupResult)) {
       warn(
@@ -685,7 +728,9 @@ function finishComponentSetup(
   // 兼容 Vue.js 2.x Options API
   if (__FEATURE_OPTIONS_API__) {
     currentInstance = instance
+    pauseTracking()
     applyOptions(instance, Component)
+    resetTracking()
     currentInstance = null
   }
 
@@ -729,11 +774,23 @@ const attrHandlers: ProxyHandler<Data> = {
   }
 }
 // 创建 setupContext环境上下文 返回组件的attrs slots 和事件emit
-function createSetupContext(instance: ComponentInternalInstance): SetupContext {
+export function createSetupContext(
+  instance: ComponentInternalInstance
+): SetupContext {
+  const expose: SetupContext['expose'] = exposed => {
+    if (__DEV__ && instance.exposed) {
+      warn(`expose() should be called only once per setup().`)
+    }
+    instance.exposed = proxyRefs(exposed)
+  }
+
   if (__DEV__) {
     // We use getters in dev in case libs like test-utils overwrite instance
     // properties (overwrites should not be done in prod)
     return Object.freeze({
+      get props() {
+        return instance.props
+      },
       get attrs() {
         return new Proxy(instance.attrs, attrHandlers)
       },
@@ -742,22 +799,27 @@ function createSetupContext(instance: ComponentInternalInstance): SetupContext {
       },
       get emit() {
         return (event: string, ...args: any[]) => instance.emit(event, ...args)
-      }
+      },
+      expose
     })
   } else {
     return {
       attrs: instance.attrs,
       slots: instance.slots,
-      emit: instance.emit
+      emit: instance.emit,
+      expose
     }
   }
 }
 
 // record effects created during a component's setup() so that they can be
 // stopped when the component unmounts
-export function recordInstanceBoundEffect(effect: ReactiveEffect) {
-  if (currentInstance) {
-    ; (currentInstance.effects || (currentInstance.effects = [])).push(effect)
+export function recordInstanceBoundEffect(
+  effect: ReactiveEffect,
+  instance = currentInstance
+) {
+  if (instance) {
+    ; (instance.effects || (instance.effects = [])).push(effect)
   }
 }
 
@@ -798,4 +860,8 @@ export function formatComponentName(
   }
 
   return name ? classify(name) : isRoot ? `App` : `Anonymous`
+}
+
+export function isClassComponent(value: unknown): value is ClassComponent {
+  return isFunction(value) && '__vccOpts' in value
 }

@@ -1,5 +1,6 @@
 import { ErrorCodes, callWithErrorHandling } from './errorHandling'
 import { isArray } from '@vue/shared'
+import { ComponentPublicInstance } from './componentPublicInstance'
 
 export interface SchedulerJob {
   (): void
@@ -29,8 +30,8 @@ export type SchedulerCbs = SchedulerCb | SchedulerCb[]
 let isFlushing = false
 // 异步任务队列是否等待执行 
 let isFlushPending = false
-// 异步任务队列 
-const queue: (SchedulerJob | null)[] = []
+
+const queue: SchedulerJob[] = []
 let flushIndex = 0
 
 const pendingPreFlushCbs: SchedulerCb[] = []
@@ -49,9 +50,12 @@ let currentPreFlushParentJob: SchedulerJob | null = null
 const RECURSION_LIMIT = 100
 type CountMap = Map<SchedulerJob | SchedulerCb, number>
 
-export function nextTick(fn?: () => void): Promise<void> {
+export function nextTick(
+  this: ComponentPublicInstance | void,
+  fn?: () => void
+): Promise<void> {
   const p = currentFlushPromise || resolvedPromise
-  return fn ? p.then(fn) : p
+  return fn ? p.then(this ? fn.bind(this) : fn) : p
 }
 // 将任务队列添加到任务队列数组最后
 export function queueJob(job: SchedulerJob) {
@@ -85,7 +89,7 @@ function queueFlush() {
 export function invalidateJob(job: SchedulerJob) {
   const i = queue.indexOf(job)
   if (i > -1) {
-    queue[i] = null
+    queue.splice(i, 1)
   }
 }
 
@@ -214,7 +218,7 @@ function flushJobs(seen?: CountMap) {
   // 所以为了保证先更新父组再更新子组件，要对 queue 做从小到大的排序
   // 2.如果一个组件在父组件更新过程中被卸载，它自身的更新应该被跳过。
   // 所以也应该要保证先更新父组件再更新子组件，要对 queue 做从小到大的排序
-  queue.sort((a, b) => getId(a!) - getId(b!))
+  queue.sort((a, b) => getId(a) - getId(b))
 
   try {
     // 执行

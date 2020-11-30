@@ -44,13 +44,7 @@ export type WatchCallback<V = any, OV = any> = (
   onInvalidate: InvalidateCbRegistrator
 ) => any
 
-type MapSources<T> = {
-  [K in keyof T]: T[K] extends WatchSource<infer V>
-  ? V
-  : T[K] extends object ? T[K] : never
-}
-
-type MapOldSources<T, Immediate> = {
+type MapSources<T, Immediate> = {
   [K in keyof T]: T[K] extends WatchSource<infer V>
   ? Immediate extends true ? (V | undefined) : V
   : T[K] extends object
@@ -98,7 +92,7 @@ export function watch<
   Immediate extends Readonly<boolean> = false
 >(
   sources: T,
-  cb: WatchCallback<MapSources<T>, MapOldSources<T, Immediate>>,
+  cb: WatchCallback<MapSources<T, false>, MapSources<T, Immediate>>,
   options?: WatchOptions<Immediate>
 ): WatchStopHandle
 
@@ -120,11 +114,10 @@ export function watch<
 ): WatchStopHandle
 
 // implementation
-// watch 函数的实现
-export function watch<T = any>(
-  source: WatchSource<T> | WatchSource<T>[],
-  cb: WatchCallback<T>,
-  options?: WatchOptions
+export function watch<T = any, Immediate extends Readonly<boolean> = false>(
+  source: T | WatchSource<T>,
+  cb: any,
+  options?: WatchOptions<Immediate>
 ): WatchStopHandle {
   if (__DEV__ && !isFunction(cb)) {
     warn(
@@ -133,11 +126,11 @@ export function watch<T = any>(
       `supports \`watch(source, cb, options?) signature.`
     )
   }
-  return doWatch(source, cb, options)
+  return doWatch(source as any, cb, options)
 }
 
 function doWatch(
-  source: WatchSource | WatchSource[] | WatchEffect,
+  source: WatchSource | WatchSource[] | WatchEffect | object,
   cb: WatchCallback | null,
   { immediate, deep, flush, onTrack, onTrigger }: WatchOptions = EMPTY_OBJ,
   instance = currentInstance
@@ -168,10 +161,10 @@ function doWatch(
   // source 可以是 getter 函数，也可以是响应式对象甚至是响应式对象数组，
   // 所以我们需要标准化 source，这是标准化 source 的流程
   let getter: () => any
-  const isRefSource = isRef(source)
-  if (isRefSource) {
-    //如果 source 是 ref 对象，则创建一个访问 source.value 的 getter 函数
+  let forceTrigger = false
+  if (isRef(source)) {
     getter = () => (source as Ref).value
+    forceTrigger = !!(source as Ref)._shallow
   } else if (isReactive(source)) {
     //如果 source 是 reactive 对象，则创建一个访问 source 的 getter 函数，并设置 deep 为 true（deep 的作用我稍后会说）;
     getter = () => source
@@ -252,7 +245,7 @@ function doWatch(
     if (cb) {
       // watch(source, cb)
       const newValue = runner()
-      if (deep || isRefSource || hasChanged(newValue, oldValue)) {
+      if (deep || forceTrigger || hasChanged(newValue, oldValue)) {
         // cleanup before running cb again
         // 执行清理函数 
         if (cleanup) {
@@ -273,17 +266,17 @@ function doWatch(
     }
   }
 
-  // important: mark the job as a watcher callback so that scheduler knows it
+  // important: mark the job as a watcher callback so that scheduler knows
   // it is allowed to self-trigger (#1727)
   job.allowRecurse = !!cb
 
-  let scheduler: (job: () => any) => void
-  // 同步 
+  let scheduler: ReactiveEffectOptions['scheduler']
   if (flush === 'sync') {
     scheduler = job
-  } else if (flush === 'pre') {
-    // ensure it's queued before component updates (which have positive ids)
-    job.id = -1
+  } else if (flush === 'post') {
+    scheduler = () => queuePostRenderEffect(job, instance && instance.suspense)
+  } else {
+    // default: 'pre'
     scheduler = () => {
       if (!instance || instance.isMounted) {
         // 进入异步队列，组件更新前执行 
@@ -295,9 +288,6 @@ function doWatch(
         job()
       }
     }
-  } else {
-    // 进入异步队列，组件更新后执行 
-    scheduler = () => queuePostRenderEffect(job, instance && instance.suspense)
   }
 
   const runner = effect(getter, {
@@ -306,8 +296,8 @@ function doWatch(
     onTrigger,
     scheduler
   })
-  // 在组件实例中记录这个 effect 
-  recordInstanceBoundEffect(runner)
+
+  recordInstanceBoundEffect(runner, instance)
 
   // initial run
   // 初次执行 
@@ -318,6 +308,8 @@ function doWatch(
       // 求旧值 
       oldValue = runner()
     }
+  } else if (flush === 'post') {
+    queuePostRenderEffect(runner, instance && instance.suspense)
   } else {
     // 没有 cb 的情况 
     runner()
@@ -336,7 +328,7 @@ function doWatch(
 export function instanceWatch(
   this: ComponentInternalInstance,
   source: string | Function,
-  cb: Function,
+  cb: WatchCallback,
   options?: WatchOptions
 ): WatchStopHandle {
   const publicThis = this.proxy as any
@@ -357,13 +349,8 @@ function traverse(value: unknown, seen: Set<unknown> = new Set()) {
     for (let i = 0; i < value.length; i++) {
       traverse(value[i], seen)
     }
-  } else if (isMap(value)) {
-    value.forEach((_, key) => {
-      // to register mutation dep for existing keys
-      traverse(value.get(key), seen)
-    })
-  } else if (isSet(value)) {
-    value.forEach(v => {
+  } else if (isSet(value) || isMap(value)) {
+    value.forEach((v: any) => {
       traverse(v, seen)
     })
   } else {
