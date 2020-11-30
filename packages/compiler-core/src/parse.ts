@@ -121,7 +121,7 @@ function parseChildren(
   mode: TextModes,
   ancestors: ElementNode[]
 ): TemplateChildNode[] {
-  // 父节点 
+  // 获取到ancestors数组的最后一项
   const parent = last(ancestors)
   const ns = parent ? parent.ns : Namespaces.HTML
   const nodes: TemplateChildNode[] = []
@@ -276,7 +276,7 @@ function parseChildren(
 
   return removedWhitespace ? nodes.filter(Boolean) : nodes
 }
-
+// 将节点推入ast node数组中
 function pushNode(nodes: TemplateChildNode[], node: TemplateChildNode): void {
   if (node.type === NodeTypes.TEXT) {
     const prev = last(nodes)
@@ -316,7 +316,7 @@ function parseCDATA(
 
   return nodes
 }
-
+// 解析注释节点
 function parseComment(context: ParserContext): CommentNode {
   __TEST__ && assert(startsWith(context.source, '<!--'))
 
@@ -332,7 +332,7 @@ function parseComment(context: ParserContext): CommentNode {
     advanceBy(context, context.source.length)
     emitError(context, ErrorCodes.EOF_IN_COMMENT)
   } else {
-    //--> 正确的结束节点三位， 小于三位报错
+    //--> 正确的结束节点前应该有很多字符， 小于等于三位报错
     if (match.index <= 3) {
       emitError(context, ErrorCodes.ABRUPT_CLOSING_OF_EMPTY_COMMENT)
     }
@@ -349,6 +349,7 @@ function parseComment(context: ParserContext): CommentNode {
     let prevIndex = 1,
       nestedIndex = 0
     // 判断嵌套注释符的情况，存在即报错 
+    // <!--sadsad<!--sgfdsfasdsadsagfh
     while ((nestedIndex = s.indexOf('<!--', prevIndex)) !== -1) {
       advanceBy(context, nestedIndex - prevIndex + 1)
       if (nestedIndex + 4 < s.length) {
@@ -580,7 +581,7 @@ function parseTag(
     codegenNode: undefined // to be created during transform phase
   }
 }
-
+// 解析节点属性
 function parseAttributes(
   context: ParserContext,
   type: TagType
@@ -760,7 +761,7 @@ function parseAttribute(
     loc
   }
 }
-
+// 解析属性值
 function parseAttributeValue(
   context: ParserContext
 ):
