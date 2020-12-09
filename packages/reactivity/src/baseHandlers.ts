@@ -8,7 +8,13 @@ import {
   reactiveMap
 } from './reactive'
 import { TrackOpTypes, TriggerOpTypes } from './operations'
-import { track, trigger, ITERATE_KEY } from './effect'
+import {
+  track,
+  trigger,
+  ITERATE_KEY,
+  pauseTracking,
+  resetTracking
+} from './effect'
 import {
   isObject,
   hasOwn,
@@ -34,24 +40,38 @@ const shallowReadonlyGet = /*#__PURE__*/ createGetter(true, true)
 //不能正确的判断是否在数组中了，所以这里是拦截了这些方法， 在内部尝试用数组原型方法，找到了直接返回
 // 未找到，再把数组内的数据转换为原来的数据， 再用数组原型方法判断
 const arrayInstrumentations: Record<string, Function> = {}
-  ;['includes', 'indexOf', 'lastIndexOf'].forEach(key => {
-    arrayInstrumentations[key] = function (...args: any[]): any {
+  // instrument identity-sensitive Array methods to account for possible reactive
+  // values
+  ; (['includes', 'indexOf', 'lastIndexOf'] as const).forEach(key => {
+    const method = Array.prototype[key] as any
+    arrayInstrumentations[key] = function (this: unknown[], ...args: unknown[]) {
       // toRaw 可以把响应式对象转成原始数据
-      const arr = toRaw(this) as any
-      for (let i = 0, l = (this as any).length; i < l; i++) {
+      const arr = toRaw(this)
+      for (let i = 0, l = this.length; i < l; i++) {
         // 依赖收集
         track(arr, TrackOpTypes.GET, i + '')
       }
       // we run the method using the original args first (which may be reactive)
       // 先尝试用参数本身，可能是响应式数据
-      const res = arr[key](...args)
+      const res = method.apply(arr, args)
       if (res === -1 || res === false) {
         // if that didn't work, run it again using raw values.
         // 如果失败，再尝试把参数转成原始数据
-        return arr[key](...args.map(toRaw))
+        return method.apply(arr, args.map(toRaw))
       } else {
         return res
       }
+    }
+  })
+  // instrument length-altering mutation methods to avoid length being tracked
+  // which leads to infinite loops in some cases (#2137)
+  ; (['push', 'pop', 'shift', 'unshift', 'splice'] as const).forEach(key => {
+    const method = Array.prototype[key] as any
+    arrayInstrumentations[key] = function (this: unknown[], ...args: unknown[]) {
+      pauseTracking()
+      const res = method.apply(this, args)
+      resetTracking()
+      return res
     }
   })
 
@@ -72,16 +92,14 @@ function createGetter(isReadonly = false, shallow = false) {
     }
 
     const targetIsArray = isArray(target)
-    // arrayInstrumentations（是个对象） 包含对数组一些方法修改的函数'includes', 'indexOf', 'lastIndexOf'
-    if (targetIsArray && hasOwn(arrayInstrumentations, key)) {
+
+    if (!isReadonly && targetIsArray && hasOwn(arrayInstrumentations, key)) {
       return Reflect.get(arrayInstrumentations, key, receiver)
     }
     // 求值
     const res = Reflect.get(target, key, receiver)
-    // 内置 Symbol key 不需要依赖收集
-    const keyIsSymbol = isSymbol(key)
     if (
-      keyIsSymbol
+      isSymbol(key)
         ? builtInSymbols.has(key as symbol)
         : key === `__proto__` || key === `__v_isRef`
     ) {
@@ -175,7 +193,7 @@ function has(target: object, key: string | symbol): boolean {
 }
 
 function ownKeys(target: object): (string | number | symbol)[] {
-  track(target, TrackOpTypes.ITERATE, ITERATE_KEY)
+  track(target, TrackOpTypes.ITERATE, isArray(target) ? 'length' : ITERATE_KEY)
   return Reflect.ownKeys(target)
 }
 

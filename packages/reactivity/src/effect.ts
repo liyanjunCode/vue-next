@@ -17,6 +17,7 @@ export interface ReactiveEffect<T = any> {
   raw: () => T
   deps: Array<Dep>
   options: ReactiveEffectOptions
+  allowRecurse: boolean
 }
 
 export interface ReactiveEffectOptions {
@@ -25,6 +26,7 @@ export interface ReactiveEffectOptions {
   onTrack?: (event: DebuggerEvent) => void
   onTrigger?: (event: DebuggerEvent) => void
   onStop?: () => void
+  allowRecurse?: boolean
 }
 
 export type DebuggerEvent = {
@@ -117,7 +119,7 @@ function createReactiveEffect<T = any>(
   } as ReactiveEffect
   //是一个 effect 独有 标识
   effect.id = uid++
-  // 标识是一个 effect 函数
+  effect.allowRecurse = !!options.allowRecurse
   effect._isEffect = true
   // effect 自身的状态
   effect.active = true
@@ -210,7 +212,11 @@ export function trigger(
   // 添加 effects 的函数
   const add = (effectsToAdd: Set<ReactiveEffect> | undefined) => {
     if (effectsToAdd) {
-      effectsToAdd.forEach(effect => effects.add(effect))
+      effectsToAdd.forEach(effect => {
+        if (effect !== activeEffect || effect.allowRecurse) {
+          effects.add(effect)
+        }
+      })
     }
   }
 

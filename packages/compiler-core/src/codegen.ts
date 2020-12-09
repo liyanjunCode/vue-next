@@ -60,12 +60,16 @@ type CodegenNode = TemplateChildNode | JSChildNode | SSRCodegenNode
 
 export interface CodegenResult {
   code: string
+  preamble: string
   ast: RootNode
   map?: RawSourceMap
 }
 
 export interface CodegenContext
-  extends Omit<Required<CodegenOptions>, 'bindingMetadata'> {
+  extends Omit<
+      Required<CodegenOptions>,
+      'bindingMetadata' | 'inline' | 'isTS'
+    > {
   source: string
   code: string
   line: number
@@ -203,32 +207,44 @@ export function generate(
   const hasHelpers = ast.helpers.length > 0
   const useWithBlock = !prefixIdentifiers && mode !== 'module'
   const genScopeId = !__BROWSER__ && scopeId != null && mode === 'module'
+  const isSetupInlined = !__BROWSER__ && !!options.inline
 
   // preambles
   // 生成预设代码
+  // in setup() inline mode, the preamble is generated in a sub context
+  // and returned separately.
+  const preambleContext = isSetupInlined
+    ? createCodegenContext(ast, options)
+    : context
   if (!__BROWSER__ && mode === 'module') {
-    genModulePreamble(ast, context, genScopeId)
+    genModulePreamble(ast, preambleContext, genScopeId, isSetupInlined)
   } else {
-    genFunctionPreamble(ast, context)
+    genFunctionPreamble(ast, preambleContext)
   }
 
-  // binding optimizations
-  const optimizeSources = options.bindingMetadata
-    ? `, $props, $setup, $data, $options`
-    : ``
   // enter render function
-  if (!ssr) {
-    // 生成浏览器平台的渲染函数
-    // export function render(_ctx, _cache) {
-    if (genScopeId) {
-      push(`const render = ${PURE_ANNOTATION}_withId(`)
+  const functionName = ssr ? `ssrRender` : `render`
+  const args = ssr ? ['_ctx', '_push', '_parent', '_attrs'] : ['_ctx', '_cache']
+  if (!__BROWSER__ && options.bindingMetadata && !options.inline) {
+    // binding optimization args
+    args.push('$props', '$setup', '$data', '$options')
+  }
+  const signature =
+    !__BROWSER__ && options.isTS
+      ? args.map(arg => `${arg}: any`).join(',')
+      : args.join(', ')
+
+  if (genScopeId) {
+    if (isSetupInlined) {
+      push(`${PURE_ANNOTATION}_withId(`)
+    } else {
+      push(`const ${functionName} = ${PURE_ANNOTATION}_withId(`)
     }
-    push(`function render(_ctx, _cache${optimizeSources}) {`)
+  }
+  if (isSetupInlined || genScopeId) {
+    push(`(${signature}) => {`)
   } else {
-    if (genScopeId) {
-      push(`const ssrRender = ${PURE_ANNOTATION}_withId(`)
-    }
-    push(`function ssrRender(_ctx, _push, _parent, _attrs${optimizeSources}) {`)
+    push(`function ${functionName}(${signature}) {`)
   }
   indent()
 
@@ -300,6 +316,7 @@ export function generate(
   return {
     ast,
     code: context.code,
+    preamble: isSetupInlined ? preambleContext.code : ``,
     // SourceMapGenerator does have toJSON() method but it's not in the types
     map: context.map ? (context.map as any).toJSON() : undefined
   }
@@ -366,7 +383,8 @@ function genFunctionPreamble(ast: RootNode, context: CodegenContext) {
 function genModulePreamble(
   ast: RootNode,
   context: CodegenContext,
-  genScopeId: boolean
+  genScopeId: boolean,
+  inline?: boolean
 ) {
   const {
     push,
@@ -440,9 +458,12 @@ function genModulePreamble(
   genHoists(ast.hoists, context)
   // 换行
   newline()
-  // 添加导出符
+
+  if (!inline) {
+    // 添加导出符
   // export 
-  push(`export `)
+    push(`export `)
+  }
 }
 
 function genAssets(
