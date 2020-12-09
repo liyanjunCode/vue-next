@@ -30,6 +30,7 @@ export function getBaseTransformPreset(
       transformOnce,
       transformIf,
       transformFor,
+      //只有在 Node.js 环境下的编译或者是 Web 端的非生产环境下才会执行 transformExpression
       ...(!__BROWSER__ && prefixIdentifiers
         ? [
           // order is important

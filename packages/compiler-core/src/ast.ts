@@ -689,7 +689,9 @@ export function createConditionalExpression(
   return {
     type: NodeTypes.JS_CONDITIONAL_EXPRESSION,
     test,
+    // IF 主 branch 的子节点对应的代码生成节点
     consequent,
+    // 后补 branch 子节点对应的代码生成节点
     alternate,
     newline,
     loc: locStub

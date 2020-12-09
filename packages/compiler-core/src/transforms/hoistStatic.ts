@@ -49,6 +49,7 @@ function walk(
   resultCache: Map<TemplateChildNode, StaticType>,
   doNotHoistNode: boolean = false
 ) {
+  // 是否有静态节点
   let hasHoistedNode = false
   // Some transforms, e.g. transformAssetUrls from @vue/compiler-sfc, replaces
   // static bindings with expressions. These expressions are guaranteed to be
@@ -58,21 +59,25 @@ function walk(
   // @vue/compiler-dom), but doing it here allows us to perform only one full
   // walk of the AST and allow `stringifyStatic` to stop walking as soon as its
   // stringficiation threshold is met.
+   // 是否包含运行时常量
   let hasRuntimeConstant = false
-
+  // 从根元素开始 递归检查所有元素的静态元素并进行处理
   const { children } = node
   for (let i = 0; i < children.length; i++) {
     const child = children[i]
     // only plain elements & text calls are eligible for hoisting.
     if (
+      // 只有普通元素和文本节点才能被静态提升
       child.type === NodeTypes.ELEMENT &&
       child.tagType === ElementTypes.ELEMENT
     ) {
       let staticType
       if (
         !doNotHoistNode &&
+        // 获取静态节点的类型，如果是元素，则递归检查它的子节点
         (staticType = getStaticType(child, resultCache)) > 0
       ) {
+        // 如果 getStaticType 返回的 staticType 的值是 2，则表明它是一个运行时常量，由于它的值在运行时才能被确定，所以是不能静态提升的。
         if (staticType === StaticType.HAS_RUNTIME_CONSTANT) {
           hasRuntimeConstant = true
         }

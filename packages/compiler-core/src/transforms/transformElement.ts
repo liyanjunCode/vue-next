@@ -56,7 +56,8 @@ import { getStaticType } from './hoistStatic'
 const directiveImportMap = new WeakMap<DirectiveNode, symbol>()
 
 // generate a JavaScript AST for this element's codegen
-// 只有当ast节点是组件或者普通元素时才返回退出函数
+// 只有当ast节点是组件或者普通元素时才返回退出函数， 因为元素节点和组件节点需要先处理子元素
+// 子元素处理完成后再执行逻辑
 export const transformElement: NodeTransform = (node, context) => {
   if (
     !(
@@ -70,6 +71,7 @@ export const transformElement: NodeTransform = (node, context) => {
   // perform the work on exit, after all child expressions have been
   // processed and merged.
   // 返回退出函数，在所有子表达式处理并合并后执行
+  // 最终目的是实现VNodeCall 接口
   return function postTransformElement() {
     const { tag, props } = node
     const isComponent = node.tagType === ElementTypes.COMPONENT
@@ -92,11 +94,12 @@ export const transformElement: NodeTransform = (node, context) => {
     let vnodeDynamicProps: VNodeCall['dynamicProps']
     let dynamicPropNames: string[] | undefined
     let vnodeDirectives: VNodeCall['directives']
+    //1.首先判断是不是block节点
     // 动态组件、svg、foreignObject 标签以及动态绑定 key prop 的节点都被视作一个 Block
     let shouldUseBlock =
       // dynamic component may resolve to plain elements
       isDynamicComponent ||
-      vnodeTag === TELEPORT ||
+      vnodeTag === TELEPORT ||  
       vnodeTag === SUSPENSE ||
       (!isComponent &&
         // <svg> and <foreignObject> must be forced into blocks so that block
@@ -109,7 +112,7 @@ export const transformElement: NodeTransform = (node, context) => {
           findProp(node, 'key', true)))
 
     // props
-    // 处理 props
+    // 2.处理 props
     if (props.length > 0) {
       const propsBuildResult = buildProps(node, context)
       vnodeProps = propsBuildResult.props
@@ -125,7 +128,7 @@ export const transformElement: NodeTransform = (node, context) => {
     }
 
     // children
-    // 处理 children
+    // 3.处理 children
     if (node.children.length > 0) {
       if (vnodeTag === KEEP_ALIVE) {
         // Although a built-in component, we compile KeepAlive with raw children

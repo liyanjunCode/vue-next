@@ -345,7 +345,7 @@ export function instanceWatch(
     : source.bind(publicThis)
   return doWatch(getter, cb.bind(publicThis), options, this)
 }
-
+// watch深度监听，收集依赖触发
 function traverse(value: unknown, seen: Set<unknown> = new Set()) {
   if (!isObject(value) || seen.has(value)) {
     return value

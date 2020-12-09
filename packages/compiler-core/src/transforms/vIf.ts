@@ -53,8 +53,11 @@ export const transformIf = createStructuralDirectiveTransform(
 
       // Exit callback. Complete the codegenNode when all children have been
       // transformed.
+      // 退出回调函数，当所有子节点转换完成执行
       return () => {
         if (isRoot) {
+           // v-if 节点的退出函数
+        // 创建 IF 节点的 codegenNode
           ifNode.codegenNode = createCodegenNodeForBranch(
             branch,
             key,
@@ -62,6 +65,8 @@ export const transformIf = createStructuralDirectiveTransform(
           ) as IfConditionalExpression
         } else {
           // attach this branch's codegen node to the v-if root.
+          // v-else-if、v-else 节点的退出函数
+        // 将此分支的 codegenNode 附加到 上一个条件节点的 codegenNode 的 alternate 中
           let parentCondition = ifNode.codegenNode!
           while (
             parentCondition.alternate.type ===
@@ -69,6 +74,7 @@ export const transformIf = createStructuralDirectiveTransform(
           ) {
             parentCondition = parentCondition.alternate
           }
+           // 更新候选节点
           parentCondition.alternate = createCodegenNodeForBranch(
             branch,
             key + ifNode.branches.length - 1,
@@ -114,17 +120,20 @@ export function processIf(
 
   if (dir.name === 'if') {
     const branch = createIfBranch(node, dir)
+    // 创建if节点
     const ifNode: IfNode = {
       type: NodeTypes.IF,
       loc: node.loc,
       branches: [branch]
     }
+    // 替换if节点
     context.replaceNode(ifNode)
     if (processCodegen) {
       return processCodegen(ifNode, branch, true)
     }
   } else {
     // locate the adjacent v-if
+    // 不是v-if节点， 从当前节点向前遍历，找到v-if节点
     const siblings = context.parent!.children
     const comments = []
     let i = siblings.indexOf(node)
@@ -137,7 +146,9 @@ export function processIf(
       }
       if (sibling && sibling.type === NodeTypes.IF) {
         // move the node to the if node's branches
+        // 删除当前节点
         context.removeNode()
+        // 根据当前节点创建分支节点
         const branch = createIfBranch(node, dir)
         if (__DEV__ && comments.length) {
           branch.children = [...comments, ...branch.children]
@@ -159,13 +170,14 @@ export function processIf(
             })
           }
         }
-
+        // 放入了找到的v-if节点的branch数组中
         sibling.branches.push(branch)
         const onExit = processCodegen && processCodegen(sibling, branch, false)
         // since the branch was removed, it will not be traversed.
         // make sure to traverse here.
         traverseNode(branch, context)
         // call on exit
+        // 因为v-if等指令都处理过了， 就需要执行退出函数
         if (onExit) onExit()
         // make sure to reset currentNode after traversal to indicate this
         // node has been removed.
@@ -185,6 +197,7 @@ function createIfBranch(node: ElementNode, dir: DirectiveNode): IfBranchNode {
     type: NodeTypes.IF_BRANCH,
     loc: node.loc,
     condition: dir.name === 'else' ? undefined : dir.exp,
+    // 节点 node 不是 template，那么 children 指向的就是这个单个 node 构造的数组
     children:
       node.tagType === ElementTypes.TEMPLATE && !findDir(node, 'for')
         ? node.children
@@ -220,6 +233,7 @@ function createChildrenCodegenNode(
   context: TransformContext
 ): BlockCodegenNode {
   const { helper } = context
+  // 创建一个index的key
   const keyProperty = createObjectProperty(
     `key`,
     createSimpleExpression(`${keyIndex}`, false, locStub, true)
@@ -229,6 +243,7 @@ function createChildrenCodegenNode(
   const needFragmentWrapper =
     children.length !== 1 || firstChild.type !== NodeTypes.ELEMENT
   if (needFragmentWrapper) {
+    // 
     if (children.length === 1 && firstChild.type === NodeTypes.FOR) {
       // optimize away nested fragments when child is a ForNode
       const vnodeCall = firstChild.codegenNode!
@@ -254,12 +269,15 @@ function createChildrenCodegenNode(
     const vnodeCall = (firstChild as ElementNode)
       .codegenNode as BlockCodegenNode
     // Change createVNode to createBlock.
+    // 把 createVNode 改变为 createBlock
     if (vnodeCall.type === NodeTypes.VNODE_CALL) {
+      // 创建 block 的辅助代码
       vnodeCall.isBlock = true
       helper(OPEN_BLOCK)
       helper(CREATE_BLOCK)
     }
     // inject branch key
+    // 给 branch 注入 key 属性
     injectProp(vnodeCall, keyProperty, context)
     return vnodeCall
   }

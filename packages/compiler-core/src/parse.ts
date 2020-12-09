@@ -225,8 +225,10 @@ function parseChildren(
     if (!context.inPre) {
       for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i]
+        // 根据解析的节点数组，循环查找文本处理空白符
         if (node.type === NodeTypes.TEXT) {
           if (!/[^\t\r\n\f ]/.test(node.content)) {
+            // 匹配空白字符
             const prev = nodes[i - 1]
             const next = nodes[i + 1]
             // If:
@@ -234,6 +236,10 @@ function parseChildren(
             // - the whitespace is adjacent to a comment, or:
             // - the whitespace is between two elements AND contains newline
             // Then the whitespace is ignored.
+            // 如果空白字符是开头或者结尾节点
+            // 或者空白字符与注释节点相连
+            // 或者空白字符在两个元素之间并包含换行符
+            // 那么这些空白字符节点都应该被移除
             if (
               !prev ||
               !next ||
@@ -243,14 +249,17 @@ function parseChildren(
                 next.type === NodeTypes.ELEMENT &&
                 /[\r\n]/.test(node.content))
             ) {
+              //移除节点
               removedWhitespace = true
               nodes[i] = null as any
             } else {
               // Otherwise, condensed consecutive whitespace inside the text
               // down to a single space
+              // 否则压缩这些空白字符到一个空格
               node.content = ' '
             }
           } else {
+            // 替换内容中的空白空间到一个空格
             node.content = node.content.replace(/[\t\r\n\f ]+/g, ' ')
           }
         } else if (
@@ -259,6 +268,7 @@ function parseChildren(
           !context.options.comments
         ) {
           // remove comment nodes in prod by default
+          // 生产环境移除注释节点
           removedWhitespace = true
           nodes[i] = null as any
         }
@@ -266,13 +276,14 @@ function parseChildren(
     } else if (parent && context.options.isPreTag(parent.tag)) {
       // remove leading newline per html spec
       // https://html.spec.whatwg.org/multipage/grouping-content.html#the-pre-element
+      // 根据 HTML 规范删除前导换行符
       const first = nodes[0]
       if (first && first.type === NodeTypes.TEXT) {
         first.content = first.content.replace(/^\r?\n/, '')
       }
     }
   }
-
+  // 过滤空白字符节点
   return removedWhitespace ? nodes.filter(Boolean) : nodes
 }
 // 将节点推入ast node数组中

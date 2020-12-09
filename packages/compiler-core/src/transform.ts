@@ -272,11 +272,13 @@ export function createTransformContext(
 export function transform(root: RootNode, options: TransformOptions) {
   // 创建 transform 上下文
   const context = createTransformContext(root, options)
-  // 转换的核心
+  // 转换的核心,遍历ast节点
   traverseNode(root, context)
+  //静态提升
   if (options.hoistStatic) {
     hoistStatic(root, context)
   }
+  //创建根代码生成节点
   if (!options.ssr) {
     createRootCodegen(root, context)
   }
@@ -289,13 +291,14 @@ export function transform(root: RootNode, options: TransformOptions) {
   root.temps = context.temps
   root.cached = context.cached
 }
-
+// 处理模板template中多个元素和单个元素的问题
 function createRootCodegen(root: RootNode, context: TransformContext) {
   const { helper } = context
   const { children } = root
   if (children.length === 1) {
     const child = children[0]
     // if the single child is an element, turn it into a block.
+    // 如果子节点是单个元素节点，则将其转换成一个 block
     if (isSingleElementRoot(root, child) && child.codegenNode) {
       // single element root is never hoisted so codegenNode will never be
       // SimpleExpressionNode
@@ -314,6 +317,7 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
     }
   } else if (children.length > 1) {
     // root has multiple nodes - return a fragment block.
+    // 如果子节点是多个节点，则返回一个 fragement 的代码生成节点
     root.codegenNode = createVNodeCall(
       context,
       helper(FRAGMENT),
@@ -428,8 +432,9 @@ export function createStructuralDirectiveTransform(
   const matches = isString(name)
     ? (n: string) => n === name
     : (n: string) => name.test(n)
-
+  // 返回指令解析相关的函数,用传入的fn解析指令
   return (node, context) => {
+    //只有元素节点才解析v-if指令
     if (node.type === NodeTypes.ELEMENT) {
       const { props } = node
       // structural directive transforms are not concerned with slots
@@ -440,13 +445,17 @@ export function createStructuralDirectiveTransform(
       const exitFns = []
       for (let i = 0; i < props.length; i++) {
         const prop = props[i]
+        // 节点有V-if相关属性才是指令节点
         if (prop.type === NodeTypes.DIRECTIVE && matches(prop.name)) {
           // structural directives are removed to avoid infinite recursion
           // also we remove them *before* applying so that it can further
           // traverse itself in case it moves the node around
+          //  删除这个结构化指令防止无限递归
           props.splice(i, 1)
           i--
+          // 执行 fn 获取对应的退出函数
           const onExit = fn(node, prop, context)
+          // 返回退出函数
           if (onExit) exitFns.push(onExit)
         }
       }

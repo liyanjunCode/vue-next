@@ -116,6 +116,7 @@ function createCodegenContext(
     helper(key) {
       return `_${helperNameMap[key]}`
     },
+    // 当前的代码 context.code 后追加 code 来更新它的值。
     push(code, node) {
       context.code += code
       if (!__BROWSER__ && context.map) {
@@ -135,9 +136,11 @@ function createCodegenContext(
         }
       }
     },
+    // 增加代码的缩进
     indent() {
       newline(++context.indentLevel)
     },
+    // 减少代码的缩进
     deindent(withoutNewLine = false) {
       if (withoutNewLine) {
         --context.indentLevel
@@ -184,6 +187,7 @@ export function generate(
     onContextCreated?: (context: CodegenContext) => void
   } = {}
 ): CodegenResult {
+  // 创建代码生成上下文
   const context = createCodegenContext(ast, options)
   if (options.onContextCreated) options.onContextCreated(context)
   const {
@@ -201,6 +205,7 @@ export function generate(
   const genScopeId = !__BROWSER__ && scopeId != null && mode === 'module'
 
   // preambles
+  // 生成预设代码
   if (!__BROWSER__ && mode === 'module') {
     genModulePreamble(ast, context, genScopeId)
   } else {
@@ -213,6 +218,8 @@ export function generate(
     : ``
   // enter render function
   if (!ssr) {
+    // 生成浏览器平台的渲染函数
+    // export function render(_ctx, _cache) {
     if (genScopeId) {
       push(`const render = ${PURE_ANNOTATION}_withId(`)
     }
@@ -242,18 +249,21 @@ export function generate(
   }
 
   // generate asset resolution statements
+  // 生成自定义组件声明代码
   if (ast.components.length) {
     genAssets(ast.components, 'component', context)
     if (ast.directives.length || ast.temps > 0) {
       newline()
     }
   }
+  // 生成自定义指令声明代码
   if (ast.directives.length) {
     genAssets(ast.directives, 'directive', context)
     if (ast.temps > 0) {
       newline()
     }
   }
+  // 生成临时变量代码
   if (ast.temps > 0) {
     push(`let `)
     for (let i = 0; i < ast.temps; i++) {
@@ -376,6 +386,7 @@ function genModulePreamble(
 
   // generate import statements for helpers
   if (ast.helpers.length) {
+    // 生成 import 声明代码
     if (optimizeImports) {
       // when bundled with webpack with code-split, calling an import binding
       // as a function leads to it being wrapped with `Object(a.b)` or `(0,a.b)`,
@@ -393,6 +404,8 @@ function genModulePreamble(
           .join(', ')}\n`
       )
     } else {
+      // 最终会生成这些代码，并更新到 context.code 中
+      // import { resolveComponent as _resolveComponent, createVNode as _createVNode, createCommentVNode as _createCommentVNode, toDisplayString as _toDisplayString, openBlock as _openBlock, createBlock as _createBlock } from "vue"
       push(
         `import { ${ast.helpers
           .map(s => `${helperNameMap[s]} as _${helperNameMap[s]}`)
@@ -420,9 +433,15 @@ function genModulePreamble(
     )
     newline()
   }
-
+  // const _hoisted_1 = { class: "app" }
+  // const _hoisted_2 = { key: 1 }
+  // const _hoisted_3 = /*#__PURE__*/_createVNode("p", null, "static", -1 /* HOISTED */)
+  // const _hoisted_4 = /*#__PURE__*/_createVNode("p", null, "static", -1 /* HOISTED */)
   genHoists(ast.hoists, context)
+  // 换行
   newline()
+  // 添加导出符
+  // export 
   push(`export `)
 }
 
@@ -431,11 +450,13 @@ function genAssets(
   type: 'component' | 'directive',
   { helper, push, newline }: CodegenContext
 ) {
+  // 这里的 helper 函数就是从前面提到的 helperNameMap 中查找对应的字符串，对于 component，返回的就是 resolveComponent
   const resolver = helper(
     type === 'component' ? RESOLVE_COMPONENT : RESOLVE_DIRECTIVE
   )
   for (let i = 0; i < assets.length; i++) {
     const id = assets[i]
+    // const _component_hello = _resolveComponent("hello")
     push(
       `const ${toValidAssetId(id, type)} = ${resolver}(${JSON.stringify(id)})`
     )
@@ -452,6 +473,7 @@ function genHoists(hoists: (JSChildNode | null)[], context: CodegenContext) {
   context.pure = true
   const { push, newline, helper, scopeId, mode } = context
   const genScopeId = !__BROWSER__ && scopeId != null && mode !== 'function'
+  // 生成一个空行
   newline()
 
   // push scope Id before initializing hoisted vnodes so that these vnodes
@@ -460,11 +482,13 @@ function genHoists(hoists: (JSChildNode | null)[], context: CodegenContext) {
     push(`${helper(PUSH_SCOPE_ID)}("${scopeId}")`)
     newline()
   }
-
+  // 遍历 hoists 数组，生成静态提升变量定义的方法
   hoists.forEach((exp, i) => {
     if (exp) {
       push(`const _hoisted_${i + 1} = `)
+      // 生成代码
       genNode(exp, context)
+      // 换行
       newline()
     }
   })
