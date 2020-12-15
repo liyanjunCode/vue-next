@@ -582,8 +582,11 @@ export function normalizeChildren(vnode: VNode, children: unknown) {
   } else if (isArray(children)) {
     type = ShapeFlags.ARRAY_CHILDREN
   } else if (typeof children === 'object') {
+    // 子元素是slot的情况
+
     if (shapeFlag & ShapeFlags.ELEMENT || shapeFlag & ShapeFlags.TELEPORT) {
       // Normalize slot to plain children for plain element and Teleport
+      // 元素节点或TELEPORT节点
       const slot = (children as any).default
       if (slot) {
         // _c marker is added by withCtx() indicating this is a compiled slot

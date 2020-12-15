@@ -137,14 +137,17 @@ export function initProps(
   def(attrs, InternalObjectKey, 1)
   setFullProps(instance, rawProps, props, attrs)
   // validation
+  // 验证 props 合法
   if (__DEV__) {
     validateProps(props, instance)
   }
 
   if (isStateful) {
     // stateful
+     // 有状态组件，响应式处理
     instance.props = isSSR ? props : shallowReactive(props)
   } else {
+     // 函数式组件处理
     if (!instance.type.props) {
       // functional w/ optional props, props === attrs
       instance.props = attrs
@@ -273,14 +276,17 @@ function setFullProps(
 ) {
   const [options, needCastKeys] = instance.propsOptions
   if (rawProps) {
+    // 循环props
     for (const key in rawProps) {
       const value = rawProps[key]
       // key, ref are reserved and never passed down
+      // 一些保留的 prop 比如 ref、key 是不会传递的
       if (isReservedProp(key)) {
         continue
       }
       // prop option names are camelized during normalization, so to support
       // kebab -> camel conversion here we need to camelize the key.
+      // 连字符形式的 props 也转成驼峰形式
       let camelKey
       if (options && hasOwn(options, (camelKey = camelize(key)))) {
         props[camelKey] = value
@@ -288,15 +294,18 @@ function setFullProps(
         // Any non-declared (either as a prop or an emitted event) props are put
         // into a separate `attrs` object for spreading. Make sure to preserve
         // original key casing
+        // 非事件派发相关的，且不在 props 中定义的普通属性用 attrs 保留
         attrs[key] = value
       }
     }
   }
-
+// 处理布尔值类型和有default默认值的类型
   if (needCastKeys) {
+    // 需要做转换的 props
     const rawCurrentProps = toRaw(props)
     for (let i = 0; i < needCastKeys.length; i++) {
       const key = needCastKeys[i]
+      // 将布尔值类型和默认值的赋值给当前props的key
       props[key] = resolvePropValue(
         options!,
         rawCurrentProps,
@@ -319,10 +328,12 @@ function resolvePropValue(
   if (opt != null) {
     const hasDefault = hasOwn(opt, 'default')
     // default values
+    // 存在default，组件没传值，取默认值
     if (hasDefault && value === undefined) {
       const defaultValue = opt.default
       if (opt.type !== Function && isFunction(defaultValue)) {
         setCurrentInstance(instance)
+        // 取默认值
         value = defaultValue(props)
         setCurrentInstance(null)
       } else {
@@ -330,12 +341,16 @@ function resolvePropValue(
       }
     }
     // boolean casting
+    // opt[0]为true代表是布尔值
     if (opt[BooleanFlags.shouldCast]) {
+      // 父组件没传值，并且没有设置default，直接设置为false
       if (!hasOwn(props, key) && !hasDefault) {
         value = false
       } else if (
         opt[BooleanFlags.shouldCastTrue] &&
         (value === '' || value === hyphenate(key))
+        // 这个示例 author: [String, Boolean]
+        // 传的空字符串或者key转换为驼峰后和value相等都是author 就设置为true
       ) {
         value = true
       }
@@ -343,12 +358,13 @@ function resolvePropValue(
   }
   return value
 }
-
+// 标准化 props 的配置
 export function normalizePropsOptions(
   comp: ConcreteComponent,
   appContext: AppContext,
   asMixin = false
 ): NormalizedPropsOptions {
+  // comp.__props 用于缓存标准化的结果，有缓存，则直接返回
   if (!appContext.deopt && comp.__props) {
     return comp.__props
   }
@@ -358,6 +374,7 @@ export function normalizePropsOptions(
   const needCastKeys: NormalizedPropsOptions[1] = []
 
   // apply mixin/extends props
+   // 处理 mixins 和 extends 这些 props
   let hasExtends = false
   if (__FEATURE_OPTIONS_API__ && !isFunction(comp)) {
     const extendProps = (raw: ComponentOptions) => {
@@ -380,28 +397,62 @@ export function normalizePropsOptions(
   if (!raw && !hasExtends) {
     return (comp.__props = EMPTY_ARR as any)
   }
-
+  // 转换前export default {
+  //   props: ['name', 'nick-name']
+  // } 数组格式
   if (isArray(raw)) {
     for (let i = 0; i < raw.length; i++) {
       if (__DEV__ && !isString(raw[i])) {
         warn(`props must be strings when using array syntax.`, raw[i])
       }
+      // 转为驼峰
       const normalizedKey = camelize(raw[i])
       if (validatePropName(normalizedKey)) {
         normalized[normalizedKey] = EMPTY_OBJ
       }
+      // 转换后 export default {
+      //   props: {
+      //     name: {},
+      //     nickName: {}
+      //   }
+      // }
     }
   } else if (raw) {
     if (__DEV__ && !isObject(raw)) {
       warn(`invalid props options`, raw)
     }
     for (const key in raw) {
+      // 转为驼峰
+      // 转换前{
+      //   title: String,
+      //   author: [String, Boolean]，
+      //   a: 222，
+      //   c:{
+      //        type: String
+      //        default: "ass"
+      //    }
+      // }
       const normalizedKey = camelize(key)
       if (validatePropName(normalizedKey)) {
         const opt = raw[key]
         const prop: NormalizedProp = (normalized[normalizedKey] =
           isArray(opt) || isFunction(opt) ? { type: opt } : opt)
+          //转换后 props: {
+          //   title: {
+          //     type: String
+          //   },
+          //   author: {
+          //     type: [String, Boolean]
+          //   },
+          //   a: 222,
+          //   c:{
+          //        type: String
+          //        default: "ass"
+          //    }
+          // }
         if (prop) {
+          // 以上面的author为例
+          // booleanIndex = 1  String=0
           const booleanIndex = getTypeIndex(Boolean, prop.type)
           const stringIndex = getTypeIndex(String, prop.type)
           prop[BooleanFlags.shouldCast] = booleanIndex > -1
@@ -409,6 +460,7 @@ export function normalizePropsOptions(
             stringIndex < 0 || booleanIndex < stringIndex
           // if the prop needs boolean casting or default value
           if (booleanIndex > -1 || hasOwn(prop, 'default')) {
+            // 含有布尔类型的 prop 和有默认值的 prop 需要转换，这些 prop 的 key 保存在 needCastKeys 中
             needCastKeys.push(normalizedKey)
           }
         }
